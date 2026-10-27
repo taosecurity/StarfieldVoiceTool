@@ -16,7 +16,10 @@
     <PackageReference Include="Avalonia" Version="11.2.7" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.7" />
     <PackageReference Include="LibVLCSharp" Version="3.9.3" />
-    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
+    <!-- Windows builds bundle LibVLC; Linux uses the system's (see README). Decided by the target
+         runtime, so a Linux build made on Windows doesn't pick up the Windows DLLs. -->
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23"
+                      Condition="$(RuntimeIdentifier.StartsWith('win')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))" />
   </ItemGroup>
 
 </Project>

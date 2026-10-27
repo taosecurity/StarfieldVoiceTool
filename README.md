@@ -52,6 +52,7 @@ Linux fixes, found by testing the Linux build for the first time:
 * The Linux build no longer crashes at startup on systems without libicu, such as minimal Debian or WSL installs.
 * Setting the game path no longer depends on a system folder picker. The dialog lets you type or paste the path, and **Browse…** uses the picker where one exists. Without a picker (no xdg-desktop-portal or GTK), the first-run setup used to wait forever.
 * Native Steam and Proton installs of Starfield are detected automatically on Linux.
+* Playback works with the system VLC from the normal runtime package (`libvlc5`). It previously looked for `libvlc.so`, which only the developer package provides. If VLC is missing, the error now says what to install.
 * New [Linux](#linux) section listing the packages to install.
 
 ## Changes in 0.6.2

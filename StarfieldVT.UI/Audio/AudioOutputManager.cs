@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 using LibVLCSharp.Shared;
 
 using Serilog;
@@ -12,8 +14,41 @@ public class AudioOutputManager
 
     private AudioOutputManager()
     {
-        LibVLCSharp.Shared.Core.Initialize();
+        if (OperatingSystem.IsLinux())
+        {
+            UseSystemLibVlcOnLinux();
+        }
+
+        try
+        {
+            LibVLCSharp.Shared.Core.Initialize();
+        }
+        catch (Exception e) when (OperatingSystem.IsLinux() && e is DllNotFoundException or VLCException)
+        {
+            throw new InvalidOperationException(
+                "Playback needs VLC. On Debian or Ubuntu: sudo apt install libvlc5 vlc-plugin-base", e);
+        }
+
         _libVlc = new LibVLC("--no-video");
+    }
+
+    /// <summary>
+    /// LibVLCSharp imports "libvlc", which resolves to libvlc.so, but distributions only ship that
+    /// unversioned name in their -dev packages; the runtime package (Debian/Ubuntu libvlc5) provides
+    /// libvlc.so.5. Load that instead, falling back to the default lookup.
+    /// </summary>
+    private static void UseSystemLibVlcOnLinux()
+    {
+        try
+        {
+            NativeLibrary.SetDllImportResolver(typeof(LibVLC).Assembly, (name, _, _) =>
+                name == "libvlc" && NativeLibrary.TryLoad("libvlc.so.5", out var handle) ? handle : IntPtr.Zero);
+        }
+        catch (InvalidOperationException e)
+        {
+            // a resolver is already registered for LibVLCSharp; keep it
+            Log.Debug(e, "LibVLCSharp already has a native library resolver");
+        }
     }
 
     private static readonly Lazy<AudioOutputManager> LazyInstance = new(() => new AudioOutputManager());
