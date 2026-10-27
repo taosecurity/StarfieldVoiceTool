@@ -22,6 +22,7 @@ namespace StarfieldVT.Core
         private readonly VoiceLineTreeCacheManager _voiceLineTreeCacheManager = new VoiceLineTreeCacheManager();
         private readonly LuceneManager _luceneManager = LuceneManager.Instance();
         private int _lineCount = 0;
+        private int _unvoicedCount = 0;
 
         public List<Master> BuildTree(string dataFolderPath, string gameFingerprint,
             IProgress<EsmLoadingProgress> progress, CancellationToken cancellationToken)
@@ -65,6 +66,7 @@ namespace StarfieldVT.Core
             CancellationToken cancellationToken)
         {
             Log.Information("Loading plugin {FileName}", esm.FileName);
+            _unvoicedCount = 0;
             var linesByVoiceType = new Dictionary<string, List<VoiceLine>>();
             var quests = esm.Mod?.Quests.ToList() ?? [];
 
@@ -98,6 +100,13 @@ namespace StarfieldVT.Core
                         }
                     }
                 }
+            }
+
+            if (_unvoicedCount > 0)
+            {
+                Log.Information(
+                    "{Count} dialogue responses in {FileName} have no voice file (normal for player lines and unvoiced text)",
+                    _unvoicedCount, esm.FileName);
             }
 
             var voiceTypes = linesByVoiceType.Select(voiceType => new VoiceType
@@ -135,7 +144,9 @@ namespace StarfieldVT.Core
             var wemFileName = VoicePaths.GetArchiveWemFileName(innerResp.WEMFile);
             if (!wemMap.TryGetValue(new WemKey(esm.FileName, wemFileName), out var wemFileRefs))
             {
-                Log.Warning("Could not find wem file {WemFile} in archive, continuing on.", wemFileName);
+                // most responses without audio are player lines (the player is unvoiced), so this is expected
+                Log.Debug("No voice file {WemFile} for {FileName}, continuing on.", wemFileName, esm.FileName);
+                _unvoicedCount++;
                 return;
             }
 
