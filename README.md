@@ -3,7 +3,7 @@
 # Starfield Voice Tool
 This tool is used to find voice lines by voice type in Starfield, filter them, play them and export them.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-061).
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-062).
 
 ## Requirements
 * Starfield must be installed. Steam installs are detected automatically; otherwise you'll be asked for the game's `Data` folder (the one containing `Starfield.esm`).
@@ -31,6 +31,15 @@ Log files are in `%LOCALAPPDATA%\StarfieldVT\logs`.
 If the voice lines look wrong or stale, use **File** → **Delete Cache**, or delete `%LOCALAPPDATA%\StarfieldVT\cache.json` and the `index` folder.
 
 Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
+
+## License
+The source code in this repository is licensed under the [MIT License](LICENSE).
+
+The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Changes in 0.6.2
+* Release zips include `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` and a `licenses` folder with the license texts of all bundled components, with links to the exact source of the GPL and LGPL ones.
+* Removed an unused icon library (Projektanker.Icons.Avalonia.FontAwesome).
 
 ## Changes in 0.6.1
 * Release zips extract with the app at the top level, instead of inside an `artifacts\<name>` folder.

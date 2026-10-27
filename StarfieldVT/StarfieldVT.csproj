@@ -21,13 +21,21 @@
     <PackageReference Include="Avalonia" Version="11.2.7" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.7" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.7" />
-    <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.4.0" />
+    <!-- pinned above Avalonia's transitive 0.20.0, which has a published security advisory -->
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\StarfieldVT.UI\StarfieldVT.UI.csproj" />
     <ProjectReference Include="..\StarfieldVT.Core\StarfieldVT.Core.csproj" />
+  </ItemGroup>
+
+  <!-- Ship the license, third-party notices and license texts with every build, as the
+       licenses of the bundled components (GPL, LGPL, Apache, BSD, MIT) require. -->
+  <ItemGroup>
+    <None Include="..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\licenses\**" LinkBase="licenses" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
