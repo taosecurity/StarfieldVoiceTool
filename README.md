@@ -53,6 +53,7 @@ Linux fixes, found by testing the Linux build for the first time:
 * Setting the game path no longer depends on a system folder picker. The dialog lets you type or paste the path, and **Browse…** uses the picker where one exists. Without a picker (no xdg-desktop-portal or GTK), the first-run setup used to wait forever.
 * Native Steam and Proton installs of Starfield are detected automatically on Linux.
 * Playback works with the system VLC from the normal runtime package (`libvlc5`). It previously looked for `libvlc.so`, which only the developer package provides. If VLC is missing, the error now says what to install.
+* Every line plays reliably, short ones included. A long-lived VLC instance went silent after the first sound on some audio setups (seen on WSLg), and short lines could be cut off when playback ended. This affected Windows too, with high-latency audio such as Bluetooth.
 * New [Linux](#linux) section listing the packages to install.
 
 ## Changes in 0.6.2
