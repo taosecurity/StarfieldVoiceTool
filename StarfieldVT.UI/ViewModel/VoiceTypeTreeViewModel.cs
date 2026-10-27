@@ -107,6 +107,12 @@ public class VoiceTypeTreeViewModel
         }
     }
 
+    /// <summary>Every line spoken by a voice type whose name contains <paramref name="searchString"/>.</summary>
+    public IEnumerable<VoiceLine> GetVoiceLinesMatching(string searchString) =>
+        FilterMasters(_searchableMasters, searchString)
+            .SelectMany(master => master.VoiceTypes)
+            .SelectMany(voiceType => voiceType.VoiceLines);
+
     private static List<Master> FilterMasters(List<Master> masters, string searchString)
     {
         if (string.IsNullOrEmpty(searchString)) return masters;

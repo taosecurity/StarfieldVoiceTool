@@ -64,6 +64,30 @@ namespace StarfieldVT
         {
             InitializeComponent();
             DataContext = _mainWindowModel;
+            _mainWindowModel.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MainWindowModel.SearchBarText)) ShowVoiceTypeFilterInTable();
+            };
+        }
+
+        /// <summary>
+        /// The voice type filter box drives the table as well as the tree: typing shows every line from
+        /// the matching voice types, and clearing it empties the table until something is selected.
+        /// </summary>
+        private void ShowVoiceTypeFilterInTable()
+        {
+            var table = _mainWindowModel.VoiceLineTableViewModel;
+            var tree = VoiceTypeTree.VoiceTypeTreeViewModel;
+            if (table == null || tree?.Masters.Result == null) return;
+
+            var voiceTypeFilter = _mainWindowModel.SearchBarText;
+            if (string.IsNullOrWhiteSpace(voiceTypeFilter))
+            {
+                table.Clear();
+                return;
+            }
+
+            table.ShowVoiceTypeFilter(tree.GetVoiceLinesMatching(voiceTypeFilter), voiceTypeFilter);
         }
 
         protected override async void OnOpened(EventArgs e)
@@ -190,6 +214,11 @@ namespace StarfieldVT
                 case LoadState.Completed:
                     TreeBuilderProgressBar.IsVisible = false;
                     ProgressText.Text = progress.Message ?? "Loaded";
+                    // apply a voice type filter typed while loading
+                    if (!string.IsNullOrWhiteSpace(_mainWindowModel.SearchBarText))
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(ShowVoiceTypeFilterInTable);
+                    }
                     break;
                 case LoadState.Failed:
                     TreeBuilderProgressBar.IsVisible = false;
