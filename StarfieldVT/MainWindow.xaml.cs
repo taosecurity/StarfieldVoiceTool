@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Platform.Storage;
 
 using Serilog;
 
@@ -144,22 +143,11 @@ namespace StarfieldVT
 
         private async Task<bool> PromptForGamePath()
         {
-            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = "Select Starfield Data Folder",
-                AllowMultiple = false
-            });
-
-            var pickedPath = folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
-            if (pickedPath == null)
-            {
-                return false;
-            }
-
-            var dataPath = SettingsManager.NormalizeDataFolder(pickedPath);
+            // the dialog validates the folder, so a returned path always contains Starfield.esm
+            var dataPath = await new GamePathDialog(SettingsManager.Instance.StarfieldDataPath)
+                .ShowDialog<string?>(this);
             if (dataPath == null)
             {
-                ProgressText.Text = $"No Starfield.esm found in {pickedPath}. Choose the game's Data folder.";
                 return false;
             }
 

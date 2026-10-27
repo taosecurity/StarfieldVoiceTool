@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="StarfieldVT.UI.View.GamePathDialog"
+        Title="Set Starfield Data folder"
+        Width="620" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="16" Spacing="12">
+        <TextBlock TextWrapping="Wrap"
+                   Text="Choose Starfield's Data folder, the one containing Starfield.esm. The game's install folder works too. Type or paste the path, or use Browse." />
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBox Name="PathBox" Grid.Column="0" VerticalContentAlignment="Center"
+                     Watermark="e.g. C:\Program Files (x86)\Steam\steamapps\common\Starfield\Data" />
+            <Button Name="BrowseButton" Grid.Column="1" Margin="8,0,0,0" Content="Browse…"
+                    Click="Browse_Click" />
+        </Grid>
+        <TextBlock Name="MessageText" TextWrapping="Wrap" IsVisible="False" Foreground="#E0625A" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" IsCancel="True" Click="Cancel_Click" />
+            <Button Content="OK" IsDefault="True" Click="Ok_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

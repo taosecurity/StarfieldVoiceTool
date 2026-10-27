@@ -9,6 +9,12 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- Without this, .NET on Linux aborts at startup unless libicu is installed, which minimal
+       installs (e.g. WSL Debian) lack. The app only needs invariant culture behaviour. -->
+  <PropertyGroup Condition="$(RuntimeIdentifier.StartsWith('linux'))">
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DebugType>portable</DebugType>
   </PropertyGroup>

@@ -3,11 +3,12 @@
 # Starfield Voice Tool
 This tool is used to find voice lines by voice type in Starfield, filter them, play them and export them.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-062).
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-063).
 
 ## Requirements
 * Starfield must be installed. Steam installs are detected automatically; otherwise you'll be asked for the game's `Data` folder (the one containing `Starfield.esm`).
-* Nothing else: playback and export work out of the box, with no extra downloads.
+* Nothing else on Windows: playback and export work out of the box, with no extra downloads.
+* On Linux, see [Linux](#linux).
 
 ## Installation
 1. Download a [Release Zip](https://github.com/taosecurity/StarfieldVoiceTool/releases) or a [Nightly Zip](https://github.com/taosecurity/StarfieldVoiceTool/actions)
@@ -22,6 +23,18 @@ This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldV
 4. Select a plugin or voice type on the left. Double-click a line to play it, or select it and press **Export** to save it as a `.wav` wherever you choose.
 5. The filter box under the lines searches the dialogue text. It supports [Lucene syntax](https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) such as `"exact phrase"`, `capt*` and `ship AND crew`. With nothing selected, it searches every plugin.
 
+## Linux
+Extract the Linux zip and run `./StarfieldVT`. Playback uses the system's VLC library, and minimal installs may lack the X11 and font libraries the window needs. On Debian or Ubuntu:
+
+```
+sudo apt install libvlc5 vlc-plugin-base libfontconfig1 libice6 libsm6 libx11-6 libx11-xcb1
+```
+
+* Native Steam and Proton installs are detected automatically. Otherwise, type or paste the game's `Data` folder in the dialog that appears; **Browse…** works where the desktop provides a folder picker (xdg-desktop-portal or GTK).
+* The tool reads every plugin in the `Data` folder, so it may list more plugins than are active in your game.
+* Settings, cache and logs are in `~/.local/share/StarfieldVT/`.
+* WSL works too, with the game's Windows install under `/mnt/c/...`. Loading is slower there, because WSL reads Windows files through a network-style link.
+
 ## Troubleshooting
 Log files are in `%LOCALAPPDATA%\StarfieldVT\logs`.
 
@@ -33,6 +46,13 @@ Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Changes in 0.6.3
+Linux fixes, found by testing the Linux build for the first time:
+* The Linux build no longer crashes at startup on systems without libicu, such as minimal Debian or WSL installs.
+* Setting the game path no longer depends on a system folder picker. The dialog lets you type or paste the path, and **Browse…** uses the picker where one exists. Without a picker (no xdg-desktop-portal or GTK), the first-run setup used to wait forever.
+* Native Steam and Proton installs of Starfield are detected automatically on Linux.
+* New [Linux](#linux) section listing the packages to install.
 
 ## Changes in 0.6.2
 * **ffmpeg is no longer needed or downloaded.** Voice files are now decoded inside the app ([NVorbis](https://github.com/NVorbis/NVorbis)), which removes the first-start download of a third-party ffmpeg build. The output was checked against ffmpeg's on 300 voice lines from every plugin: identical. A copy downloaded by an earlier version in `%LOCALAPPDATA%\StarfieldVT\ffmpeg` is no longer used and can be deleted.
