@@ -3,7 +3,7 @@
 # Starfield Voice Tool
 This tool is used to find voice lines by voice type in Starfield, filter them, play them and export them.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes in 0.6.0](#changes-in-060).
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-061).
 
 ## Requirements
 * Starfield must be installed. Steam installs are detected automatically; otherwise you'll be asked for the game's `Data` folder (the one containing `Starfield.esm`).
@@ -31,6 +31,11 @@ Log files are in `%LOCALAPPDATA%\StarfieldVT\logs`.
 If the voice lines look wrong or stale, use **File** → **Delete Cache**, or delete `%LOCALAPPDATA%\StarfieldVT\cache.json` and the `index` folder.
 
 Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
+
+## Changes in 0.6.1
+* Release zips extract with the app at the top level, instead of inside an `artifacts\<name>` folder.
+* The Linux `StarfieldVT` binary in the release zip is executable again; previously it needed `chmod +x`.
+* The build pipeline uses current GitHub Actions versions.
 
 ## Changes in 0.6.0
 * **Export** asks where to save the `.wav`. It used to write into the game's `Data\sound\voice` folder without asking, and crashed if that failed.
