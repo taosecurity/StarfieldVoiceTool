@@ -11,53 +11,61 @@ namespace StarfieldVT.Core
 {
     public class VoiceLineTreeCacheManager
     {
-        private readonly string _appDataPath = AppDataFolder.GetAppDataFolder();
         private const string CacheFilename = "cache.json";
         private readonly string _cachePath;
 
-        public VoiceLineTreeCacheManager()
+        public VoiceLineTreeCacheManager() : this(Path.Combine(AppDataFolder.GetAppDataFolder(), CacheFilename))
         {
-            this._cachePath = Path.Combine(_appDataPath, CacheFilename);
         }
 
-        public void SaveCurrentTree(List<Master> tree)
+        public VoiceLineTreeCacheManager(string cachePath)
         {
-            Log.Information("Writing cache file to {cachePath}", this._cachePath);
-            var currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
-
-            var cacheFile = new CacheFile { Masters = tree, Version = currentVersion ?? new Version() };
-            string treeAsJson = JsonSerializer.Serialize(cacheFile);
-            File.WriteAllText(this._cachePath, treeAsJson);
+            _cachePath = cachePath;
         }
 
-        private bool cacheExists()
+        private static Version CurrentVersion => Assembly.GetExecutingAssembly().GetName().Version ?? new Version();
+
+        public void SaveCurrentTree(List<Master> tree, string gameFingerprint)
         {
-            return File.Exists(this._cachePath);
+            Log.Information("Writing cache file to {CachePath}", _cachePath);
+
+            var cacheFile = new CacheFile { Masters = tree, Version = CurrentVersion, GameFingerprint = gameFingerprint };
+            var directory = Path.GetDirectoryName(_cachePath);
+            if (directory != null) Directory.CreateDirectory(directory);
+
+            // write to a temp file first so a crash mid-write can't leave a truncated cache behind
+            var tempPath = _cachePath + ".tmp";
+            File.WriteAllText(tempPath, JsonSerializer.Serialize(cacheFile));
+            File.Move(tempPath, _cachePath, overwrite: true);
         }
 
-        private bool CacheIsUpToDate(CacheFile cacheFile)
+        private static bool IsCacheStale(CacheFile cacheFile, string gameFingerprint)
         {
-            var currentVersion = Assembly.GetExecutingAssembly().GetName().Version;
-            var isCacheOutOfDate = currentVersion > cacheFile.Version;
-
-            if (isCacheOutOfDate)
+            if (cacheFile.Version != CurrentVersion)
             {
-                Log.Information("Cache file is from an older version, invalidating it and rebuilding the voice line tree.");
+                Log.Information("Cache file is from version {CacheVersion} (running {CurrentVersion}), rebuilding the voice line tree.",
+                    cacheFile.Version, CurrentVersion);
+                return true;
             }
 
-            return isCacheOutOfDate;
+            if (cacheFile.GameFingerprint != gameFingerprint)
+            {
+                Log.Information("Game files, data folder or load order changed since the cache was built, rebuilding the voice line tree.");
+                return true;
+            }
+
+            return false;
         }
 
-        public List<Master>? TryToLoadCache()
+        public List<Master>? TryToLoadCache(string gameFingerprint)
         {
-            if (!cacheExists()) return null;
-            Log.Information($"Loading cache from {_cachePath}");
-            var cacheText = File.ReadAllText(this._cachePath);
+            if (!File.Exists(_cachePath)) return null;
+            Log.Information("Loading cache from {CachePath}", _cachePath);
 
             try
             {
-                var cache = JsonSerializer.Deserialize<CacheFile>(cacheText);
-                if (cache == null || CacheIsUpToDate(cache))
+                var cache = JsonSerializer.Deserialize<CacheFile>(File.ReadAllText(_cachePath));
+                if (cache == null || IsCacheStale(cache, gameFingerprint))
                 {
                     return null;
                 }
@@ -66,7 +74,7 @@ namespace StarfieldVT.Core
             }
             catch (Exception ex)
             {
-                Log.Warning($"Failed to load cache from {_cachePath} and will invalidate + reload instead: {ex.Message}");
+                Log.Warning(ex, "Failed to load cache from {CachePath} and will invalidate + reload instead", _cachePath);
             }
 
             return null;
@@ -74,7 +82,7 @@ namespace StarfieldVT.Core
 
         public void BustCache()
         {
-            Log.Information($"Deleting cache file at {_cachePath}");
+            Log.Information("Deleting cache file at {CachePath}", _cachePath);
 
             if (File.Exists(_cachePath))
             {

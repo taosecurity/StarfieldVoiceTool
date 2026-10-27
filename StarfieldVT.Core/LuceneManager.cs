@@ -28,12 +28,9 @@ public class LuceneManager : IDisposable
     private readonly IndexWriterConfig _indexConfig;
     private readonly FSDirectory _dir;
     private readonly IndexWriter _writer;
-    private static LuceneManager? _instance;
+    private static readonly Lazy<LuceneManager> LazyInstance = new(() => new LuceneManager());
 
-    public static LuceneManager Instance()
-    {
-        return _instance ??= new LuceneManager();
-    }
+    public static LuceneManager Instance() => LazyInstance.Value;
 
     private LuceneManager()
     {
@@ -84,29 +81,51 @@ public class LuceneManager : IDisposable
         _writer.Commit();
     }
 
-    public IEnumerable<VoiceLine> FreeTextSearch(string searchText, string? master, string? voiceType)
+    /// <summary>
+    /// Parse what the user typed into the filter box. Lucene syntax (phrases, wildcards, AND/OR) works
+    /// when it is well formed; anything else, like a lone quote or bracket, is searched literally.
+    /// </summary>
+    public static Query ParseUserQuery(QueryParser parser, string searchText)
     {
-        var reader = DirectoryReader.Open(_dir);
-        var searcher = new IndexSearcher(reader);
-
-        var parser = new QueryParser(AppLuceneVersion, "dialogue", _analyzer);
-
-        var userQuery = parser.Parse(searchText);
-        var boolQuery = new BooleanQuery()
+        try
         {
-            { userQuery, Occur.MUST },
-            { new TermQuery(new Term("master", master)), Occur.MUST }
+            return parser.Parse(searchText);
+        }
+        catch (ParseException)
+        {
+            // lowercase too, so a bare AND/OR/NOT is a word rather than an operator; the analyzer lowercases anyway
+            return parser.Parse(QueryParserBase.Escape(searchText.ToLowerInvariant()));
+        }
+    }
+
+    /// <param name="master">Restrict to this plugin, or search every plugin when null.</param>
+    /// <param name="voiceType">Restrict to this voice type, or search every voice type when null.</param>
+    public IReadOnlyList<VoiceLine> FreeTextSearch(string searchText, string? master, string? voiceType)
+    {
+        var parser = new QueryParser(AppLuceneVersion, "dialogue", _analyzer);
+        var boolQuery = new BooleanQuery
+        {
+            { ParseUserQuery(parser, searchText), Occur.MUST }
         };
+
+        if (master != null)
+        {
+            boolQuery.Add(new TermQuery(new Term("master", master)), Occur.MUST);
+        }
 
         if (voiceType != null)
         {
             boolQuery.Add(new TermQuery(new Term("voiceType", voiceType)), Occur.MUST);
         }
 
-        Log.Debug("Searching with query: {0}", boolQuery.ToString());
+        Log.Debug("Searching with query: {Query}", boolQuery.ToString());
 
-        var docs = searcher.Search(boolQuery, int.MaxValue);
-        var fullDocs = docs.ScoreDocs.Select(doc =>
+        using var reader = DirectoryReader.Open(_dir);
+        var searcher = new IndexSearcher(reader);
+        var docs = searcher.Search(boolQuery, Math.Max(1, reader.MaxDoc));
+
+        // enumerate them now, otherwise the reader will have been disposed
+        return docs.ScoreDocs.Select(doc =>
         {
             var fullDoc = searcher.Doc(doc.Doc);
             return new VoiceLine(
@@ -115,10 +134,7 @@ public class LuceneManager : IDisposable
                 fullDoc.Get("master"),
                 fullDoc.Get("voiceType")
             );
-        }).ToList(); // enumerate them now, otherwise the reader will have been disposed
-
-        reader.Dispose();
-        return fullDocs;
+        }).ToList();
     }
 
     public void Dispose()

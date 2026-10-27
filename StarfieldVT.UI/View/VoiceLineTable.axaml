@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <DataGrid Grid.Row="0" Grid.Column="0" IsReadOnly="True" AutoGenerateColumns="False"
                   Name="DialogueGrid" ItemsSource="{Binding VoiceLines}"
@@ -36,5 +37,6 @@
             <Button Grid.Column="2" Name="ExportBtn" Margin="10, 5" Content="Export"
                     Click="ExportBtn_OnClick" />
         </Grid>
+        <TextBlock Grid.Row="2" Margin="5,0,5,5" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
     </Grid>
 </UserControl>

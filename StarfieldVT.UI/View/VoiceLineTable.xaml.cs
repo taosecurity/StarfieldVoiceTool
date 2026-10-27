@@ -1,14 +1,14 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Mutagen.Bethesda;
-using Mutagen.Bethesda.Archives;
+using Avalonia.Platform.Storage;
 
-using Noggog;
+using Mutagen.Bethesda.Archives;
 
 using Serilog;
 
 using StarfieldVT.Core;
+using StarfieldVT.Core.Models;
 
 using StarfieldVT.UI.Audio;
 using StarfieldVT.UI.ViewModel;
@@ -19,74 +19,75 @@ namespace StarfieldVT.UI.View;
 
 public partial class VoiceLineTable : UserControl
 {
-    private readonly VoiceManager voiceManager = VoiceManager.Instance;
-
     public VoiceLineTable()
     {
         InitializeComponent();
-
-        DataContextChanged += (sender, args) =>
-        {
-        };
     }
 
-    public VoiceLineTableViewModel ViewModel => (VoiceLineTableViewModel)DataContext!;
+    public VoiceLineTableViewModel? ViewModel => DataContext as VoiceLineTableViewModel;
 
-    private DirectoryPath DataFolder => new DirectoryPath(StarfieldManager.GetGamePath());
+    private static IArchiveFile FindArchiveFile(VoiceLine voiceLine) =>
+        VoiceArchiveManager.Shared(StarfieldManager.GetGamePath()).FindFile(voiceLine.Filename)
+        ?? throw new FileNotFoundException(
+            $"Could not find {voiceLine.Filename} in the voice archives for {voiceLine.ModName}");
 
-    private IArchiveFile? getArchiveFileFromSelectedVoiceLine()
+    private async void DialogueGrid_OnDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (ViewModel.SelectedVoiceLine != null)
+        var viewModel = ViewModel;
+        var voiceLine = viewModel?.SelectedVoiceLine;
+        if (viewModel == null || voiceLine == null) return;
+
+        try
         {
-            var archivePrefix = this.ViewModel.SelectedVoiceLine.ModName.Replace(".esm", "").Replace(".esp", "");
-            var applicableArchives = Archive.GetApplicableArchivePaths(GameRelease.Starfield, DataFolder).Where(archive =>
-                archive.NameWithoutExtension.StartsWith("Starfield - Voices")
-                || archive.NameWithoutExtension.Contains(archivePrefix)
-                && archive.NameWithoutExtension.ToLower().Contains("voices")
-                && archive.NameWithoutExtension.ToLower().Contains("en"));
-
-            foreach (var archive in applicableArchives)
-            {
-                var archiveReader = Archive.CreateReader(GameRelease.Starfield, archive);
-                var voiceFile = archiveReader.Files.FirstOrDefault(file =>
-                    file.Path.Equals(this.ViewModel.SelectedVoiceLine.Filename,
-                        StringComparison.InvariantCultureIgnoreCase));
-
-                if (voiceFile != null)
-                {
-                    return voiceFile;
-                }
-            }
+            viewModel.StatusText = $"Playing {Path.GetFileName(voiceLine.Filename)}";
+            // finding the file, decoding it and running ffmpeg are all slow; keep the UI responsive
+            await Task.Run(() => VoiceManager.Instance.PlayVoiceLine(FindArchiveFile(voiceLine)));
         }
-        return null;
-    }
-
-    private void DialogueGrid_OnDoubleTapped(object? sender, TappedEventArgs e)
-    {
-        if (ViewModel.SelectedVoiceLine != null)
+        catch (Exception ex)
         {
-            var voiceFile = getArchiveFileFromSelectedVoiceLine();
-            if (voiceFile != null)
-            {
-                voiceManager.PlayVoiceLine(voiceFile);
-            }
-            else
-            {
-                Log.Warning(
-                    "Attempted to play selected voice line {Filename}, but unable to find the file in the archive for {ModName}",
-                    ViewModel.SelectedVoiceLine.Filename, ViewModel.SelectedVoiceLine.ModName);
-            }
+            Log.Error(ex, "Failed to play voice line {Filename} from {ModName}", voiceLine.Filename, voiceLine.ModName);
+            viewModel.StatusText = $"Could not play line: {ex.Message}";
         }
     }
 
-    private void ExportBtn_OnClick(object sender, RoutedEventArgs e)
+    private async void ExportBtn_OnClick(object sender, RoutedEventArgs e)
     {
-        var voiceFile = getArchiveFileFromSelectedVoiceLine();
-        if (voiceFile != null)
+        var viewModel = ViewModel;
+        if (viewModel == null) return;
+
+        var voiceLine = viewModel.SelectedVoiceLine;
+        if (voiceLine == null)
         {
-            var wemPath = AudioConverter.Wem2Ogg(voiceFile.GetBytes());
-            AudioConverter.Ogg2Wav(wemPath,
-                Path.Join(StarfieldManager.GetGamePath(), Path.ChangeExtension(voiceFile.Path, "wav")));
+            viewModel.StatusText = "Select a voice line to export";
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        try
+        {
+            var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            {
+                Title = "Export voice line",
+                SuggestedFileName = $"{voiceLine.VoiceType}_{Path.GetFileNameWithoutExtension(voiceLine.Filename)}.wav",
+                DefaultExtension = "wav",
+                ShowOverwritePrompt = true,
+                FileTypeChoices = [new FilePickerFileType("WAV audio") { Patterns = ["*.wav"] }]
+            });
+            if (file == null) return;
+
+            var wavPath = file.TryGetLocalPath()
+                          ?? throw new InvalidOperationException("Please choose a location on a local drive.");
+
+            viewModel.StatusText = "Exporting...";
+            await Task.Run(() => AudioConverter.ConvertWemToWav(FindArchiveFile(voiceLine).GetBytes(), wavPath));
+            viewModel.StatusText = $"Exported to {wavPath}";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to export voice line {Filename}", voiceLine.Filename);
+            viewModel.StatusText = $"Export failed: {ex.Message}";
         }
     }
 }

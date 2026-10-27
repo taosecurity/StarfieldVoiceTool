@@ -7,6 +7,7 @@ using Avalonia.Markup.Xaml;
 using Serilog;
 
 using StarfieldVT.Core.Filesystem;
+using StarfieldVT.UI.Audio;
 
 namespace StarfieldVT
 {
@@ -33,6 +34,10 @@ namespace StarfieldVT
                     fileSizeLimitBytes: 524288000
                     )
                 .CreateLogger();
+
+            Log.Information("Starfield Voice Tool {Version} starting",
+                typeof(App).Assembly.GetName().Version);
+            AudioConverter.CleanTempDir();
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {

@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -6,8 +5,11 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 
+using Serilog;
+
 using StarfieldVT.Core;
 using StarfieldVT.Core.Dependencies;
+using StarfieldVT.Core.Filesystem;
 using StarfieldVT.Core.Models;
 using StarfieldVT.UI.Audio;
 using StarfieldVT.UI.Events;
@@ -54,12 +56,8 @@ namespace StarfieldVT
 
     public partial class MainWindow : Window
     {
-        public ObservableCollection<Master> Masters { get; set; } = [];
+        private const string GamePathHint = "Starfield Data folder not set. Use File > Set Game Path.";
 
-        readonly List<Master> _tree = [];
-
-        private readonly VoiceManager voiceManager = VoiceManager.Instance;
-        private readonly VoiceLineTreeCacheManager cacheManager = new VoiceLineTreeCacheManager();
         private readonly MainWindowModel _mainWindowModel = MainWindowModel.GetMainWindowModel();
 
         public MainWindow()
@@ -71,15 +69,38 @@ namespace StarfieldVT
         protected override async void OnOpened(EventArgs e)
         {
             base.OnOpened(e);
-            await EnsureGamePathConfigured();
-            await CheckAndInstallFfmpeg();
-            SetLoadingState();
+            try
+            {
+                // the tree is only loaded once we know where the game is
+                if (!await EnsureGamePathConfigured())
+                {
+                    ProgressText.Text = GamePathHint;
+                    return;
+                }
+
+                await CheckAndInstallFfmpeg();
+                await ReloadTree(bustCache: false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Startup failed");
+                ProgressText.Text = $"Startup failed: {ex.Message}";
+            }
         }
 
         private void SetLoadingState()
         {
             TreeBuilderProgressBar.IsEnabled = true;
             TreeBuilderProgressBar.IsVisible = true;
+            TreeBuilderProgressBar.IsIndeterminate = true;
+            ProgressText.Text = "Loading voice lines...";
+        }
+
+        private async Task ReloadTree(bool bustCache)
+        {
+            SetLoadingState();
+            _mainWindowModel.VoiceLineTableViewModel?.Clear();
+            await VoiceTypeTree.ReloadAsync(StarfieldManager.GetGamePath(), bustCache);
         }
 
         private async Task CheckAndInstallFfmpeg()
@@ -87,31 +108,47 @@ namespace StarfieldVT
             var ffmpegInterstitial = new FfmpegInterstitial();
             var ffmpegDepMgr = new FfmpegDependencyManager();
 
-            ffmpegInterstitial.Show();
+            ffmpegInterstitial.Show(this);
             this.IsEnabled = false;
-            await ffmpegDepMgr.DownloadFfmpegIfNotExists();
-            ffmpegInterstitial.Close();
-            this.IsEnabled = true;
+            try
+            {
+                await ffmpegDepMgr.EnsureFfmpegAsync();
+            }
+            catch (Exception ex)
+            {
+                // the voice line browser still works without ffmpeg; only playback and export need it
+                Log.Error(ex, "Could not install ffmpeg");
+                if (_mainWindowModel.VoiceLineTableViewModel != null)
+                {
+                    _mainWindowModel.VoiceLineTableViewModel.StatusText =
+                        $"ffmpeg could not be installed, so playback and export won't work: {ex.Message}";
+                }
+            }
+            finally
+            {
+                ffmpegInterstitial.Close();
+                this.IsEnabled = true;
+            }
         }
 
-        private async Task EnsureGamePathConfigured()
+        private async Task<bool> EnsureGamePathConfigured()
         {
             var settings = SettingsManager.Instance;
 
             if (settings.HasValidGamePath())
-                return;
+                return true;
 
             var autoPath = settings.TryAutoDetectGamePath();
-            if (autoPath != null)
+            if (autoPath != null && SettingsManager.IsDataFolder(autoPath))
             {
                 settings.StarfieldDataPath = autoPath;
-                return;
+                return true;
             }
 
-            await PromptForGamePath();
+            return await PromptForGamePath();
         }
 
-        private async Task PromptForGamePath()
+        private async Task<bool> PromptForGamePath()
         {
             var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
             {
@@ -119,47 +156,75 @@ namespace StarfieldVT
                 AllowMultiple = false
             });
 
-            if (folders.Count > 0)
+            var pickedPath = folders.Count > 0 ? folders[0].TryGetLocalPath() : null;
+            if (pickedPath == null)
             {
-                var path = folders[0].Path.LocalPath;
-                SettingsManager.Instance.StarfieldDataPath = path;
+                return false;
             }
+
+            var dataPath = SettingsManager.NormalizeDataFolder(pickedPath);
+            if (dataPath == null)
+            {
+                ProgressText.Text = $"No Starfield.esm found in {pickedPath}. Choose the game's Data folder.";
+                return false;
+            }
+
+            SettingsManager.Instance.StarfieldDataPath = dataPath;
+            return true;
         }
 
         private void VoiceTypeTree_OnVoiceTypeSelected(object sender, VoiceTypeSelectedArgs<IVoiceTypeTreeItem> e)
         {
             if (e.NewValue is VoiceType selectedVoiceType)
             {
-                if (_mainWindowModel.VoiceLineTableViewModel == null) return;
-                _mainWindowModel.VoiceLineTableViewModel.VoiceLines = null;
-                _mainWindowModel.VoiceLineTableViewModel.VoiceLines =
-                    new ObservableCollection<VoiceLine>(selectedVoiceType.VoiceLines);
-                _mainWindowModel.VoiceLineTableViewModel.SelectedVoiceType = selectedVoiceType.EditorId;
-                _mainWindowModel.VoiceLineTableViewModel.SelectedMaster = selectedVoiceType.FromMaster;
+                _mainWindowModel.VoiceLineTableViewModel?.ShowVoiceLines(
+                    selectedVoiceType.VoiceLines, selectedVoiceType.FromMaster, selectedVoiceType.EditorId);
             }
         }
 
         private void VoiceTypeTree_OnProgressChanged(object? sender, VoiceTypeTree.VoiceTypeTreeProgressChangedEventHandler e)
         {
-            if (e.Progress.Num < 0)
+            var progress = e.Progress;
+            switch (progress.State)
             {
-                TreeBuilderProgressBar.IsVisible = false;
-                ProgressText.Text = "Loaded";
-                return;
+                case LoadState.Completed:
+                    TreeBuilderProgressBar.IsVisible = false;
+                    ProgressText.Text = progress.Message ?? "Loaded";
+                    break;
+                case LoadState.Failed:
+                    TreeBuilderProgressBar.IsVisible = false;
+                    ProgressText.Text =
+                        $"Failed to load voice lines: {progress.Message} (logs: {AppDataFolder.GetLogDir()})";
+                    break;
+                default:
+                    TreeBuilderProgressBar.IsVisible = true;
+                    TreeBuilderProgressBar.IsIndeterminate = progress.Total <= 0;
+                    TreeBuilderProgressBar.Maximum = Math.Max(1, progress.Total);
+                    TreeBuilderProgressBar.Value = progress.Num;
+                    ProgressText.Text = progress.Message ??
+                                        $"Loading {progress.EsmName} (plugin {progress.PluginNumber} of {progress.PluginCount}): " +
+                                        $"quest {progress.Num:N0} of {progress.Total:N0}";
+                    break;
             }
-            TreeBuilderProgressBar.Value = e.Progress.Num;
-            ProgressText.Text = $"Parsing quest {e.Progress.EsmName}";
-
-            if (!(TreeBuilderProgressBar.Value >= TreeBuilderProgressBar.Maximum)) return;
-            TreeBuilderProgressBar.IsVisible = false;
-            ProgressText.Text = "Loaded";
         }
 
-        private void DeleteCache_Click(object sender, RoutedEventArgs e)
+        private async void DeleteCache_Click(object sender, RoutedEventArgs e)
         {
-            LuceneManager.Instance().DeleteIndex();
-            cacheManager.BustCache();
-            VoiceTypeTree.Reload();
+            if (!SettingsManager.Instance.HasValidGamePath())
+            {
+                ProgressText.Text = GamePathHint;
+                return;
+            }
+
+            try
+            {
+                await ReloadTree(bustCache: true);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to rebuild the cache");
+                ProgressText.Text = $"Failed to rebuild the cache: {ex.Message}";
+            }
         }
 
         private void StopButton_OnClick(object sender, RoutedEventArgs e)
@@ -171,14 +236,8 @@ namespace StarfieldVT
         {
             if (masterSelectedArgs.NewValue is Master master)
             {
-                var masterVoiceLines = master.VoiceTypes.Select(vt => vt.VoiceLines)
-                    .Aggregate((currentLines, newLines) => [.. currentLines, .. newLines]);
-                if (_mainWindowModel.VoiceLineTableViewModel == null) return;
-                _mainWindowModel.VoiceLineTableViewModel.VoiceLines = null;
-                _mainWindowModel.VoiceLineTableViewModel.VoiceLines =
-                    new ObservableCollection<VoiceLine>(masterVoiceLines);
-                _mainWindowModel.VoiceLineTableViewModel.SelectedMaster = master.Filename;
-                _mainWindowModel.VoiceLineTableViewModel.SelectedVoiceType = null;
+                _mainWindowModel.VoiceLineTableViewModel?.ShowVoiceLines(
+                    master.VoiceTypes.SelectMany(vt => vt.VoiceLines), master.Filename, null);
             }
         }
 
@@ -193,7 +252,20 @@ namespace StarfieldVT
 
         private async void SetGamePath_Click(object sender, RoutedEventArgs e)
         {
-            await PromptForGamePath();
+            try
+            {
+                // the cache fingerprint includes the data folder, so a new path rebuilds automatically
+                if (await PromptForGamePath())
+                {
+                    await CheckAndInstallFfmpeg();
+                    await ReloadTree(bustCache: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to change the game path");
+                ProgressText.Text = $"Failed to change the game path: {ex.Message}";
+            }
         }
     }
 }

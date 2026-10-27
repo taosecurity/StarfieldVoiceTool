@@ -47,6 +47,9 @@ jobs:
       - name: Restore
         run: dotnet restore StarfieldVT.sln
 
+      - name: Test
+        run: dotnet test StarfieldVT.Core.Tests/StarfieldVT.Core.Tests.csproj -c Release
+
       - name: Publish
         run: dotnet publish StarfieldVT/StarfieldVT.csproj -c Release -r ${{ matrix.rid }} --self-contained true -o publish/${{ matrix.rid }}
 

@@ -4,33 +4,42 @@ using Mutagen.Bethesda.Archives;
 
 using Serilog;
 
+using StarfieldVT.Core.Filesystem;
+
 namespace StarfieldVT.UI.Audio
 {
     public class VoiceManager
     {
         private VoiceManager() { }
         private static readonly Lazy<VoiceManager> lazy = new Lazy<VoiceManager>(() => new VoiceManager());
-        public static VoiceManager Instance
-        {
-            get
-            {
-                return lazy.Value;
-            }
-        }
+        public static VoiceManager Instance => lazy.Value;
 
-        public void PlayVoiceLine(IArchiveFile voiceFileOne)
-        {
-            try
-            {
-                Log.Information($"Playing voice file {voiceFileOne.Path}");
+        private readonly object _lock = new();
+        private string? _currentWavPath;
 
-                var oggPath = AudioConverter.Wem2Ogg(voiceFileOne.GetBytes());
-                AudioConverter.Ogg2Wav(oggPath, Path.ChangeExtension(oggPath, ".wav"));
-                AudioOutputManager.Instance.PlaySound(Path.ChangeExtension(oggPath, ".wav"));
-            }
-            catch (Exception ex)
+        /// <summary>
+        /// Convert and play a voice file. Slow (decoding + ffmpeg), so call it off the UI thread.
+        /// Throws if the file can't be converted.
+        /// </summary>
+        public void PlayVoiceLine(IArchiveFile voiceFile)
+        {
+            Log.Information("Playing voice file {Path}", voiceFile.Path);
+
+            var wavPath = Path.Combine(AppDataFolder.GetTempDir(), $"playback-{Guid.NewGuid():N}.wav");
+            AudioConverter.ConvertWemToWav(voiceFile.GetBytes(), wavPath);
+
+            string? previousWavPath;
+            lock (_lock)
             {
-                Log.Error(ex, $"Exception thrown when attempting to play soundfile at {voiceFileOne.Path}");
+                previousWavPath = _currentWavPath;
+                _currentWavPath = wavPath;
+            }
+
+            // stops (and releases) the previous sound, so its file can be removed afterwards
+            AudioOutputManager.Instance.PlaySound(wavPath);
+            if (previousWavPath != null)
+            {
+                AudioConverter.TryDelete(previousWavPath);
             }
         }
     }

@@ -23,22 +23,44 @@ public partial class VoiceTypeTree : UserControl
         }
     }
 
-    public VoiceTypeTreeViewModel VoiceTypeTreeViewModel;
+    private readonly SemaphoreSlim _reloadLock = new(1, 1);
+
+    public VoiceTypeTreeViewModel? VoiceTypeTreeViewModel { get; private set; }
 
     public VoiceTypeTree()
     {
         InitializeComponent();
-
-        VoiceTypeTreeViewModel = new VoiceTypeTreeViewModel();
-        VoiceTypeTreeViewModel.ProgressChanged += VoiceTypeTreeViewModelOnProgressChanged;
-        this.DataContext = VoiceTypeTreeViewModel;
     }
 
-    public void Reload()
+    /// <summary>
+    /// Load the voice type tree for a data folder. Any load already in progress is cancelled and
+    /// awaited first, so two builds never write to the cache and search index at once.
+    /// </summary>
+    public async Task ReloadAsync(string dataFolderPath, bool bustCache = false)
     {
-        VoiceTypeTreeViewModel = new VoiceTypeTreeViewModel();
-        VoiceTypeTreeViewModel.ProgressChanged += VoiceTypeTreeViewModelOnProgressChanged;
-        this.DataContext = VoiceTypeTreeViewModel;
+        await _reloadLock.WaitAsync();
+        try
+        {
+            var previous = VoiceTypeTreeViewModel;
+            if (previous != null)
+            {
+                previous.ProgressChanged -= VoiceTypeTreeViewModelOnProgressChanged;
+                previous.Cancel();
+                await previous.LoadTask;
+            }
+
+            VoiceArchiveManager.ResetShared();
+
+            var viewModel = new VoiceTypeTreeViewModel(dataFolderPath, bustCache);
+            viewModel.ProgressChanged += VoiceTypeTreeViewModelOnProgressChanged;
+            viewModel.FilterVoiceTypes(SearchText);
+            VoiceTypeTreeViewModel = viewModel;
+            DataContext = viewModel;
+        }
+        finally
+        {
+            _reloadLock.Release();
+        }
     }
 
     private void VoiceTypeTreeViewModelOnProgressChanged(object? sender,
@@ -100,6 +122,6 @@ public partial class VoiceTypeTree : UserControl
             return;
         }
 
-        voiceTypeTree.VoiceTypeTreeViewModel.FilterVoiceTypes(newSearchQuery);
+        voiceTypeTree.VoiceTypeTreeViewModel?.FilterVoiceTypes(newSearchQuery);
     }
 }

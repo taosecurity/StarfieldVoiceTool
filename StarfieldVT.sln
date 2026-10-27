@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BnkExtractor", "BnkExtracto
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StarfieldVT.UI", "StarfieldVT.UI\StarfieldVT.UI.csproj", "{55252B94-614F-4070-8B32-5BF5DB4C78F5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StarfieldVT.Core.Tests", "StarfieldVT.Core.Tests\StarfieldVT.Core.Tests.csproj", "{60ED1FD3-04AF-432E-95AE-764E9D392841}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -105,6 +107,26 @@ Global
 		{55252B94-614F-4070-8B32-5BF5DB4C78F5}.Release|x64.Build.0 = Release|Any CPU
 		{55252B94-614F-4070-8B32-5BF5DB4C78F5}.Release|x86.ActiveCfg = Release|Any CPU
 		{55252B94-614F-4070-8B32-5BF5DB4C78F5}.Release|x86.Build.0 = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|ARM.Build.0 = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|x64.Build.0 = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Debug|x86.Build.0 = Debug|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|Any CPU.Build.0 = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|ARM.ActiveCfg = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|ARM.Build.0 = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|ARM64.Build.0 = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|x64.ActiveCfg = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|x64.Build.0 = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|x86.ActiveCfg = Release|Any CPU
+		{60ED1FD3-04AF-432E-95AE-764E9D392841}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

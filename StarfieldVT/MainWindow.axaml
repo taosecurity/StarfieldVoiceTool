@@ -5,9 +5,6 @@
         x:Class="StarfieldVT.MainWindow"
         x:Name="MainWindowElement"
         Title="Starfield Voice Tool" Height="433" Width="1200">
-    <Window.DataContext>
-        <local:MainWindowModel />
-    </Window.DataContext>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition />

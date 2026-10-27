@@ -1,113 +1,144 @@
-﻿using System.IO;
-using Mutagen.Bethesda;
+﻿using Mutagen.Bethesda;
 using Mutagen.Bethesda.Archives;
 using Noggog;
 using Serilog;
 
 namespace StarfieldVT.Core;
 
-public class WemKey(string masterName, string wemName)
+public sealed record WemKey
 {
-    private string MasterName { get; } = masterName.ToLower();
-    private string WemName { get; } = wemName.ToLower();
-
-    public override bool Equals(object? obj)
+    public WemKey(string masterName, string wemName)
     {
-        if (obj is not WemKey other)
-        {
-            return false;
-        }
-
-        return MasterName.Equals(other.MasterName, StringComparison.InvariantCultureIgnoreCase) && WemName.Equals(other.WemName, StringComparison.InvariantCultureIgnoreCase);
+        MasterName = masterName.ToLowerInvariant();
+        WemName = wemName.ToLowerInvariant();
     }
 
-    public override int GetHashCode()
-    {
-        return MasterName.GetHashCode() + WemName.GetHashCode();
-    }
+    public string MasterName { get; }
+    public string WemName { get; }
 }
 
 public class VoiceArchiveManager
 {
-    private DirectoryPath _dataFolder = new DirectoryPath(StarfieldManager.GetGamePath());
-    public IEnumerable<FilePath> GetApplicableVoiceArchives(string modFileName)
+    private static readonly object SharedLock = new();
+    private static VoiceArchiveManager? _shared;
+
+    private readonly DirectoryPath _dataFolder;
+    private readonly object _filesLock = new();
+    private List<List<IArchiveFile>>? _wemFilesByArchive;
+
+    public VoiceArchiveManager(string dataFolderPath)
     {
-        var archivePrefix = modFileName.Replace(".esm", "").Replace(".esp", "");
-        return Archive.GetApplicableArchivePaths(GameRelease.Starfield, _dataFolder).Where(archive =>
-            archive.NameWithoutExtension.StartsWith("Starfield - Voices")
-            || archive.NameWithoutExtension.Contains(archivePrefix)
-            && archive.NameWithoutExtension.ToLower().Contains("voices")
-            && archive.NameWithoutExtension.ToLower().Contains("en"));
+        _dataFolder = new DirectoryPath(dataFolderPath);
     }
-    public List<IArchiveFile> FindVoiceFileByName(string name, string modFileName)
+
+    /// <summary>
+    /// A long-lived instance for looking up files on playback/export, so archive indexes are only read once.
+    /// </summary>
+    public static VoiceArchiveManager Shared(string dataFolderPath)
     {
-        var archives = GetApplicableVoiceArchives(modFileName);
-        var voiceFiles = new List<IArchiveFile>();
-
-        foreach (var archive in archives)
+        lock (SharedLock)
         {
-            var archiveReader = Archive.CreateReader(GameRelease.Starfield, archive);
-            var voiceFile = archiveReader.Files.FirstOrDefault(file => file.Path.EndsWith(name));
-
-            if (voiceFile is not null)
+            if (_shared == null || !_shared._dataFolder.Path.Equals(dataFolderPath, StringComparison.OrdinalIgnoreCase))
             {
-                voiceFiles.Add(voiceFile);
+                _shared = new VoiceArchiveManager(dataFolderPath);
+            }
+
+            return _shared;
+        }
+    }
+
+    /// <summary>Forget cached archive indexes, e.g. after the game or load order changed.</summary>
+    public static void ResetShared()
+    {
+        lock (SharedLock)
+        {
+            _shared = null;
+        }
+    }
+
+    public List<FilePath> GetVoiceArchives() =>
+        Archive.GetApplicableArchivePaths(GameRelease.Starfield, _dataFolder)
+            .Where(archive => VoicePaths.IsEnglishVoiceArchive(archive.NameWithoutExtension))
+            .ToList();
+
+    /// <summary>
+    /// Index every .wem in the English voice archives by (plugin folder, file name). The plugin folder
+    /// namespaces the files, so one map serves every plugin in the load order.
+    /// </summary>
+    public Dictionary<WemKey, List<WemFileReference>> BuildWemMap()
+    {
+        var wemDict = new Dictionary<WemKey, List<WemFileReference>>();
+        var skipped = 0;
+
+        foreach (var archive in GetVoiceArchives())
+        {
+            Log.Information("Reading voice archive {Archive}", archive.Name);
+            var archiveReader = Archive.CreateReader(GameRelease.Starfield, archive);
+            foreach (var file in archiveReader.Files)
+            {
+                if (!file.Path.EndsWith(".wem", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var pluginFolder = VoicePaths.GetPluginFolder(file.Path);
+                var voiceType = VoicePaths.GetVoiceType(file.Path);
+                if (pluginFolder == null || voiceType == null)
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var wemKey = new WemKey(pluginFolder, Path.GetFileName(file.Path));
+                if (!wemDict.TryGetValue(wemKey, out var refs))
+                {
+                    refs = [];
+                    wemDict.Add(wemKey, refs);
+                }
+
+                refs.Add(new WemFileReference(file.Path, voiceType));
             }
         }
 
-        return voiceFiles;
+        if (skipped > 0)
+        {
+            Log.Warning("Skipped {Count} wem files that were not under a plugin/voice type folder", skipped);
+        }
+
+        Log.Information("Indexed {Count} distinct voice files", wemDict.Count);
+        return wemDict;
     }
 
-    public Dictionary<WemKey, List<WemFileReference>> BuildWemMap(string modFileName)
+    /// <summary>Find a voice file by its full path inside the archive, e.g. a <see cref="Models.VoiceLine.Filename"/>.</summary>
+    public IArchiveFile? FindFile(string archivePath)
     {
-        Log.Information("Building wem Map for {0}", modFileName);
-        var archives = GetApplicableVoiceArchives(modFileName);
-        var wemDict = new Dictionary<WemKey, List<WemFileReference>>();
-
-        archives.ForEach(archive =>
+        foreach (var files in GetWemFilesByArchive())
         {
-            Log.Debug("Reading archive file {0}", archive.Path);
-            var archiveReader = Archive.CreateReader(GameRelease.Starfield, archive);
-            archiveReader.Files.Where(file => file.Path.EndsWith(".wem")).ForEach(file =>
-            {
-                // wem key needs to contain the esm name to properly namespace
-                var esmName = file.Path.Split("/").First(
-                    pathPart => pathPart.EndsWith(".esm", StringComparison.InvariantCultureIgnoreCase)
-                                || pathPart.EndsWith(".esp", StringComparison.InvariantCultureIgnoreCase
-                                ));
-                var wemFilename = Path.GetFileName(file.Path);
-                var wemKey = new WemKey(esmName, wemFilename);
-                var wemFileReference = new WemFileReference(file.Path);
+            var match = files.FirstOrDefault(file => VoicePaths.ArchivePathsEqual(file.Path, archivePath));
+            if (match != null) return match;
+        }
 
-                if (wemDict.ContainsKey(wemKey))
-                {
-                    wemDict[wemKey].Add(wemFileReference);
-                }
-                else
-                {
-                    wemDict.Add(wemKey, [wemFileReference]);
-                }
-            });
-        });
+        return null;
+    }
 
-        return wemDict;
+    private List<List<IArchiveFile>> GetWemFilesByArchive()
+    {
+        lock (_filesLock)
+        {
+            return _wemFilesByArchive ??= GetVoiceArchives()
+                .Select(archive => Archive.CreateReader(GameRelease.Starfield, archive).Files
+                    .Where(file => file.Path.EndsWith(".wem", StringComparison.OrdinalIgnoreCase))
+                    .ToList())
+                .ToList();
+        }
     }
 }
 
 public class WemFileReference
 {
-    public string WemPath { get; set; }
+    public string WemPath { get; }
     public string VoiceType { get; }
 
     public WemFileReference(string wemPath, string voiceType)
     {
-        this.WemPath = wemPath;
-        this.VoiceType = voiceType;
-    }
-
-    public WemFileReference(string wemPath)
-    {
-        this.WemPath = wemPath;
-        this.VoiceType = Path.GetFileName(Path.GetDirectoryName(wemPath)) ?? throw new InvalidOperationException();
+        WemPath = wemPath;
+        VoiceType = voiceType;
     }
 }

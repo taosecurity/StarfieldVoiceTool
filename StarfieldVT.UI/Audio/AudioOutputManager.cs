@@ -7,6 +7,7 @@ namespace StarfieldVT.UI.Audio;
 public class AudioOutputManager
 {
     private readonly LibVLC _libVlc;
+    private readonly object _lock = new();
     private MediaPlayer? _mediaPlayer;
 
     private AudioOutputManager()
@@ -15,50 +16,54 @@ public class AudioOutputManager
         _libVlc = new LibVLC("--no-video");
     }
 
-    private static AudioOutputManager? _instance = null;
+    private static readonly Lazy<AudioOutputManager> LazyInstance = new(() => new AudioOutputManager());
 
-    public static AudioOutputManager Instance
-    {
-        get
-        {
-            if (_instance != null) return _instance;
-
-            _instance = new AudioOutputManager();
-            return _instance;
-        }
-    }
+    public static AudioOutputManager Instance => LazyInstance.Value;
 
     public void PlaySound(string soundPath)
     {
-        if (_mediaPlayer != null)
+        lock (_lock)
         {
-            _mediaPlayer.Stop();
-            _mediaPlayer.Dispose();
-            _mediaPlayer = null;
-        }
-
-        _mediaPlayer = new MediaPlayer(_libVlc);
-
-        using var media = new Media(_libVlc, soundPath, FromType.FromPath);
-        _mediaPlayer.EndReached += (_, _) =>
-        {
-            Log.Debug("Playback ended, disposing media player");
-            // Must be dispatched - cannot dispose from event handler thread
-            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            if (_mediaPlayer != null)
             {
-                _mediaPlayer?.Dispose();
+                _mediaPlayer.Stop();
+                _mediaPlayer.Dispose();
                 _mediaPlayer = null;
-            });
-        };
+            }
 
-        _mediaPlayer.Play(media);
+            var player = new MediaPlayer(_libVlc);
+            player.EndReached += (_, _) =>
+            {
+                Log.Debug("Playback ended, disposing media player");
+                // Must be dispatched - cannot dispose from event handler thread.
+                // Only dispose this player if it is still the current one; if a newer sound has started,
+                // PlaySound already disposed it and the field now holds the new player.
+                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+                {
+                    lock (_lock)
+                    {
+                        if (!ReferenceEquals(_mediaPlayer, player)) return;
+                        _mediaPlayer = null;
+                    }
+
+                    player.Dispose();
+                });
+            };
+            _mediaPlayer = player;
+
+            using var media = new Media(_libVlc, soundPath, FromType.FromPath);
+            player.Play(media);
+        }
     }
 
     public void StopSound()
     {
-        if (_mediaPlayer is { IsPlaying: true })
+        lock (_lock)
         {
-            _mediaPlayer.Stop();
+            if (_mediaPlayer is { IsPlaying: true })
+            {
+                _mediaPlayer.Stop();
+            }
         }
     }
 }

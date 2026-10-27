@@ -18,8 +18,8 @@ public class SettingsManager
     private static readonly string SettingsFilePath =
         Path.Combine(AppDataFolder.GetAppDataFolder(), "settings.json");
 
-    private static SettingsManager? _instance;
-    public static SettingsManager Instance => _instance ??= new SettingsManager();
+    private static readonly Lazy<SettingsManager> LazyInstance = new(() => new SettingsManager());
+    public static SettingsManager Instance => LazyInstance.Value;
 
     private AppSettings _settings;
 
@@ -40,7 +40,22 @@ public class SettingsManager
 
     public bool HasValidGamePath()
     {
-        return !string.IsNullOrEmpty(StarfieldDataPath) && Directory.Exists(StarfieldDataPath);
+        return !string.IsNullOrEmpty(StarfieldDataPath) && IsDataFolder(StarfieldDataPath);
+    }
+
+    /// <summary>A Starfield Data folder is recognised by the Starfield.esm inside it.</summary>
+    public static bool IsDataFolder(string path) => File.Exists(Path.Combine(path, "Starfield.esm"));
+
+    /// <summary>
+    /// Accept either the Data folder or the game's install folder, and return the Data folder,
+    /// or null if neither contains Starfield.esm.
+    /// </summary>
+    public static string? NormalizeDataFolder(string path)
+    {
+        if (IsDataFolder(path)) return path;
+
+        var dataSubfolder = Path.Combine(path, "Data");
+        return IsDataFolder(dataSubfolder) ? dataSubfolder : null;
     }
 
     public string? TryAutoDetectGamePath()

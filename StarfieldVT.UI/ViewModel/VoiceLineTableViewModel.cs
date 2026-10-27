@@ -1,11 +1,6 @@
 ﻿using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-
-using Mutagen.Bethesda;
-
-using Noggog;
 
 using Serilog;
 using StarfieldVT.Core;
@@ -15,96 +10,96 @@ namespace StarfieldVT.UI.ViewModel;
 
 public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
 {
-    private VoiceLine? _voiceLine;
-    public VoiceLine? SelectedVoiceLine
-    {
-        get => _voiceLine;
-        set
-        {
-            if (value != null) _voiceLine = value;
-            OnPropertyChanged();
-        }
-    }
-
-    private string? _selectedMaster;
-    private string? _selectedVoiceType;
-
-    public string? SelectedMaster
-    {
-        get => _selectedMaster;
-        set
-        {
-            if (value != null)
-            {
-                _selectedMaster = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public string? SelectedVoiceType
-    {
-        get => _selectedVoiceType;
-        set
-        {
-            _selectedVoiceType = value;
-            OnPropertyChanged();
-        }
-    }
-
-    private List<VoiceLine> _searchableVoiceLines = [];
-    private ObservableCollection<VoiceLine>? _voiceLines = [];
     private readonly LuceneManager _luceneManager = LuceneManager.Instance();
 
-    public ObservableCollection<VoiceLine>? VoiceLines
+    // every line in the current selection, shown when there's no filter text
+    private List<VoiceLine> _selectionVoiceLines = [];
+
+    private VoiceLine? _selectedVoiceLine;
+    public VoiceLine? SelectedVoiceLine
     {
-        get => _voiceLines;
+        get => _selectedVoiceLine;
         set
         {
-            _voiceLines = value;
-            if (value is { Count: > 0 })
+            if (SetField(ref _selectedVoiceLine, value) && value != null)
             {
-                _searchableVoiceLines = value.ToList();
+                Log.Information("Chose voice line {Filename}", value.Filename);
             }
-
-            if (_voiceLines != null && !string.IsNullOrEmpty(_voiceLineFilterText))
-            {
-                _voiceLines.Clear();
-                _voiceLines.AddRange(FilterVoiceLines());
-            }
-
-            OnPropertyChanged();
         }
     }
 
-    private string _voiceLineFilterText;
+    /// <summary>The plugin of the current selection, or null to search every plugin.</summary>
+    public string? SelectedMaster { get; private set; }
 
+    /// <summary>The voice type of the current selection, or null for all voice types in the plugin.</summary>
+    public string? SelectedVoiceType { get; private set; }
+
+    private ObservableCollection<VoiceLine> _voiceLines = [];
+    public ObservableCollection<VoiceLine> VoiceLines
+    {
+        get => _voiceLines;
+        private set => SetField(ref _voiceLines, value);
+    }
+
+    private string _voiceLineFilterText = string.Empty;
     public string VoiceLineFilterText
     {
         get => _voiceLineFilterText;
         set
         {
-            _voiceLineFilterText = value;
-            OnPropertyChanged();
+            if (SetField(ref _voiceLineFilterText, value ?? string.Empty))
+            {
+                ApplyFilter();
+            }
         }
     }
 
-    public VoiceLineTableViewModel()
+    private string _statusText = string.Empty;
+    public string StatusText
     {
-        _voiceLines.CollectionChanged += VoiceLinesOnCollectionChanged;
-        _voiceLineFilterText = string.Empty;
+        get => _statusText;
+        set => SetField(ref _statusText, value);
     }
 
-    private void VoiceLinesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    /// <summary>Show the lines of a plugin or voice type, applying the current filter once.</summary>
+    public void ShowVoiceLines(IEnumerable<VoiceLine> voiceLines, string? master, string? voiceType)
     {
-        if (e.Action != NotifyCollectionChangedAction.Add) return;
+        _selectionVoiceLines = voiceLines.ToList();
+        SelectedMaster = master;
+        SelectedVoiceType = voiceType;
+        OnPropertyChanged(nameof(SelectedMaster));
+        OnPropertyChanged(nameof(SelectedVoiceType));
+        Log.Debug("Showing {Count} lines for master {Master}, voice type {VoiceType}",
+            _selectionVoiceLines.Count, master, voiceType);
+        ApplyFilter();
+    }
+
+    public void Clear() => ShowVoiceLines([], null, null);
+
+    private void ApplyFilter()
+    {
+        if (string.IsNullOrWhiteSpace(VoiceLineFilterText))
+        {
+            // replacing the collection is far cheaper than clearing and re-adding thousands of rows
+            VoiceLines = new ObservableCollection<VoiceLine>(_selectionVoiceLines);
+            StatusText = $"{VoiceLines.Count:N0} lines";
+            return;
+        }
+
         try
         {
-            // if (e.NewItems != null) _searchableVoiceLines = new List<VoiceLine>(e.NewItems)V
+            var filteredVoiceLines = _luceneManager.FreeTextSearch(VoiceLineFilterText, SelectedMaster, SelectedVoiceType);
+            Log.Debug("Filter with {FilterText} found {Count} result(s)", VoiceLineFilterText, filteredVoiceLines.Count);
+            VoiceLines = new ObservableCollection<VoiceLine>(filteredVoiceLines);
+            StatusText = SelectedMaster == null
+                ? $"{VoiceLines.Count:N0} matches in all plugins"
+                : $"{VoiceLines.Count:N0} matches";
         }
-        catch (InvalidCastException ex)
+        catch (Exception ex)
         {
-            Log.Error(ex, "Error while loading voice lines");
+            Log.Warning(ex, "Search for {FilterText} failed", VoiceLineFilterText);
+            VoiceLines = [];
+            StatusText = $"Search failed: {ex.Message}";
         }
     }
 
@@ -112,21 +107,6 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
-        switch (propertyName)
-        {
-            case nameof(SelectedVoiceLine):
-                OnSelectedVoiceLineChanged();
-                break;
-            case nameof(VoiceLineFilterText):
-                OnFilterTextChanged();
-                break;
-            case nameof(SelectedMaster):
-                OnSelectedMasterChanged();
-                break;
-            case nameof(SelectedVoiceType):
-                OnSelectedVoiceTypeChanged();
-                break;
-        }
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
@@ -137,49 +117,4 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
         OnPropertyChanged(propertyName);
         return true;
     }
-
-    #region Property Changed Handlers
-
-    private void OnSelectedVoiceLineChanged()
-    {
-        if (SelectedVoiceLine != null)
-        {
-            Log.Information($"Chose voice line {SelectedVoiceLine.Filename}");
-        }
-    }
-
-    private void OnFilterTextChanged()
-    {
-        if (string.IsNullOrWhiteSpace(VoiceLineFilterText))
-        {
-            VoiceLines?.Clear();
-            VoiceLines?.AddRange(_searchableVoiceLines);
-            return;
-        }
-
-        var filteredVoiceLines = FilterVoiceLines();
-        Log.Debug($"Filter with {VoiceLineFilterText} found {filteredVoiceLines.Count()} result(s)");
-
-        VoiceLines?.Clear();
-        VoiceLines?.AddRange(filteredVoiceLines);
-    }
-
-    private void OnSelectedMasterChanged()
-    {
-        Log.Debug("Chose master {0}", SelectedMaster);
-        OnFilterTextChanged();
-    }
-
-    private void OnSelectedVoiceTypeChanged()
-    {
-        Log.Debug("chose voice type {0}", SelectedVoiceType);
-        OnFilterTextChanged();
-    }
-
-    private List<VoiceLine> FilterVoiceLines()
-    {
-        return _luceneManager.FreeTextSearch(VoiceLineFilterText, SelectedMaster, SelectedVoiceType).ToList();
-    }
-
-    #endregion
 }
