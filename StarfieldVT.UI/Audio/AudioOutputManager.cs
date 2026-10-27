@@ -66,28 +66,14 @@ public class AudioOutputManager
                 _mediaPlayer = null;
             }
 
-            var player = new MediaPlayer(_libVlc);
-            player.EndReached += (_, _) =>
-            {
-                Log.Debug("Playback ended, disposing media player");
-                // Must be dispatched - cannot dispose from event handler thread.
-                // Only dispose this player if it is still the current one; if a newer sound has started,
-                // PlaySound already disposed it and the field now holds the new player.
-                System.Threading.ThreadPool.QueueUserWorkItem(_ =>
-                {
-                    lock (_lock)
-                    {
-                        if (!ReferenceEquals(_mediaPlayer, player)) return;
-                        _mediaPlayer = null;
-                    }
-
-                    player.Dispose();
-                });
-            };
-            _mediaPlayer = player;
+            // The player is kept until the next sound starts (or Stop). It must not be disposed on
+            // EndReached: that fires when VLC has finished decoding, while the audio output may still
+            // be playing buffered audio. With high-latency outputs (WSLg's PulseAudio, Bluetooth),
+            // disposing then cut off short lines entirely.
+            _mediaPlayer = new MediaPlayer(_libVlc);
 
             using var media = new Media(_libVlc, soundPath, FromType.FromPath);
-            player.Play(media);
+            _mediaPlayer.Play(media);
         }
     }
 
@@ -95,10 +81,8 @@ public class AudioOutputManager
     {
         lock (_lock)
         {
-            if (_mediaPlayer is { IsPlaying: true })
-            {
-                _mediaPlayer.Stop();
-            }
+            // not just when IsPlaying: after decoding ends, buffered audio may still be audible
+            _mediaPlayer?.Stop();
         }
     }
 }
