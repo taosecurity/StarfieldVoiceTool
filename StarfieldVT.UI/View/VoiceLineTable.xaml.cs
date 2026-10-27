@@ -40,7 +40,7 @@ public partial class VoiceLineTable : UserControl
         try
         {
             viewModel.StatusText = $"Playing {Path.GetFileName(voiceLine.Filename)}";
-            // finding the file, decoding it and running ffmpeg are all slow; keep the UI responsive
+            // finding the file and decoding it are slow; keep the UI responsive
             await Task.Run(() => VoiceManager.Instance.PlayVoiceLine(FindArchiveFile(voiceLine)));
         }
         catch (Exception ex)

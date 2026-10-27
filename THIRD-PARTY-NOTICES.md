@@ -82,8 +82,7 @@ License text: `licenses/MIT.txt`, applied with each copyright notice below.
 | MicroCom.Runtime | 0.11.0 | Copyright (c) 2021 Nikita Tsukanov |
 | Tmds.DBus.Protocol | 0.92.0 | Copyright 2016 Tom Deseyn; Copyright 2010 Other Contributors |
 | DynamicData | 9.0.4 | Copyright (c) Roland Pheasant 2011-2022 |
-| FFMpegCore | 5.1.0 | Copyright (c) 2023 Vlad Jerca |
-| Instances | 3.0.0 | Copyright (c) 2020 Malte Rosenbjerg |
+| NVorbis | 1.0.0-rc.2 | Copyright (c) 2020 Andrew Ward |
 | FluentResults | 3.15.2 | Copyright (c) 2021 Michael Altmann |
 | OggVorbisSharp | 1.0.1 | Copyright (c) the OggVorbisSharp authors (https://github.com/SamboyCoding/OggVorbisSharp) |
 | SharpZipLib | 1.4.2 | Copyright © 2000-2018 SharpZipLib Contributors |
@@ -93,10 +92,3 @@ License text: `licenses/MIT.txt`, applied with each copyright notice below.
 | K4os.Hash.xxHash | 1.0.8 | Copyright (c) 2017 Milosz Krajewski |
 | ini-parser-netstandard | 2.5.2 | Copyright (c) 2008 Ricardo Amores Hernández |
 | OneOf | 3.0.271 | Copyright (c) 2016 Harry McIntyre |
-
-## Not included: ffmpeg
-
-ffmpeg is **not** shipped with this program. If it isn't already installed, the program downloads it
-on first start from https://github.com/ffbinaries/ffbinaries-prebuilt/releases (v5.1), verifies it
-against a pinned SHA-256 hash and stores it in `%LOCALAPPDATA%\StarfieldVT\ffmpeg`. That build is
-provided by the ffbinaries project under ffmpeg's own license (GPL); see https://ffmpeg.org/legal.html.

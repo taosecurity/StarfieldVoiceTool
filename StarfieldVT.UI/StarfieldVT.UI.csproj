@@ -15,7 +15,6 @@
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.7" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.7" />
-    <PackageReference Include="FFMpegCore" Version="5.1.0" />
     <PackageReference Include="LibVLCSharp" Version="3.9.3" />
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.23" Condition="$([MSBuild]::IsOSPlatform('Windows'))" />
   </ItemGroup>

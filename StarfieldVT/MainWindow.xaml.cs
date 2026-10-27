@@ -8,7 +8,6 @@ using Avalonia.Platform.Storage;
 using Serilog;
 
 using StarfieldVT.Core;
-using StarfieldVT.Core.Dependencies;
 using StarfieldVT.Core.Filesystem;
 using StarfieldVT.Core.Models;
 using StarfieldVT.UI.Audio;
@@ -102,7 +101,6 @@ namespace StarfieldVT
                     return;
                 }
 
-                await CheckAndInstallFfmpeg();
                 await ReloadTree(bustCache: false);
             }
             catch (Exception ex)
@@ -125,34 +123,6 @@ namespace StarfieldVT
             SetLoadingState();
             _mainWindowModel.VoiceLineTableViewModel?.Clear();
             await VoiceTypeTree.ReloadAsync(StarfieldManager.GetGamePath(), bustCache);
-        }
-
-        private async Task CheckAndInstallFfmpeg()
-        {
-            var ffmpegInterstitial = new FfmpegInterstitial();
-            var ffmpegDepMgr = new FfmpegDependencyManager();
-
-            ffmpegInterstitial.Show(this);
-            this.IsEnabled = false;
-            try
-            {
-                await ffmpegDepMgr.EnsureFfmpegAsync();
-            }
-            catch (Exception ex)
-            {
-                // the voice line browser still works without ffmpeg; only playback and export need it
-                Log.Error(ex, "Could not install ffmpeg");
-                if (_mainWindowModel.VoiceLineTableViewModel != null)
-                {
-                    _mainWindowModel.VoiceLineTableViewModel.StatusText =
-                        $"ffmpeg could not be installed, so playback and export won't work: {ex.Message}";
-                }
-            }
-            finally
-            {
-                ffmpegInterstitial.Close();
-                this.IsEnabled = true;
-            }
         }
 
         private async Task<bool> EnsureGamePathConfigured()
@@ -286,7 +256,6 @@ namespace StarfieldVT
                 // the cache fingerprint includes the data folder, so a new path rebuilds automatically
                 if (await PromptForGamePath())
                 {
-                    await CheckAndInstallFfmpeg();
                     await ReloadTree(bustCache: false);
                 }
             }

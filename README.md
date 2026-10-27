@@ -7,7 +7,7 @@ This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldV
 
 ## Requirements
 * Starfield must be installed. Steam installs are detected automatically; otherwise you'll be asked for the game's `Data` folder (the one containing `Starfield.esm`).
-* [ffmpeg](https://www.ffmpeg.org/), optional: if it isn't on `PATH`, the tool downloads a verified copy on first start.
+* Nothing else: playback and export work out of the box, with no extra downloads.
 
 ## Installation
 1. Download a [Release Zip](https://github.com/taosecurity/StarfieldVoiceTool/releases) or a [Nightly Zip](https://github.com/taosecurity/StarfieldVoiceTool/actions)
@@ -22,9 +22,6 @@ This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldV
 4. Select a plugin or voice type on the left. Double-click a line to play it, or select it and press **Export** to save it as a `.wav` wherever you choose.
 5. The filter box under the lines searches the dialogue text. It supports [Lucene syntax](https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) such as `"exact phrase"`, `capt*` and `ship AND crew`. With nothing selected, it searches every plugin.
 
-### ffmpeg
-ffmpeg is needed to convert `wem` audio to `wav` for playback and export. If it isn't on `PATH` or next to the executable, the tool downloads it once from https://github.com/ffbinaries/ffbinaries-prebuilt/releases (v5.1). The download is checked against a pinned SHA-256 hash, and only the `ffmpeg` binary is extracted, to `%LOCALAPPDATA%\StarfieldVT\ffmpeg\`.
-
 ## Troubleshooting
 Log files are in `%LOCALAPPDATA%\StarfieldVT\logs`.
 
@@ -38,6 +35,8 @@ The source code in this repository is licensed under the [MIT License](LICENSE).
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
 
 ## Changes in 0.6.2
+* **ffmpeg is no longer needed or downloaded.** Voice files are now decoded inside the app ([NVorbis](https://github.com/NVorbis/NVorbis)), which removes the first-start download of a third-party ffmpeg build. The output was checked against ffmpeg's on 300 voice lines from every plugin: identical. A copy downloaded by an earlier version in `%LOCALAPPDATA%\StarfieldVT\ffmpeg` is no longer used and can be deleted.
+* Temporary audio files are deleted right after each conversion (a file handle left open by the ww2ogg converter previously kept them until the next start).
 * Release zips include `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` and a `licenses` folder with the license texts of all bundled components, with links to the exact source of the GPL and LGPL ones.
 * Removed an unused icon library (Projektanker.Icons.Avalonia.FontAwesome).
 

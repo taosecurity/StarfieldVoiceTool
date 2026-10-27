@@ -18,7 +18,7 @@ namespace StarfieldVT.UI.Audio
         private string? _currentWavPath;
 
         /// <summary>
-        /// Convert and play a voice file. Slow (decoding + ffmpeg), so call it off the UI thread.
+        /// Convert and play a voice file. Slow (decoding), so call it off the UI thread.
         /// Throws if the file can't be converted.
         /// </summary>
         public void PlayVoiceLine(IArchiveFile voiceFile)

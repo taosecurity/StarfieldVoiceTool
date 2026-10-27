@@ -7,7 +7,6 @@ namespace StarfieldVT.Core.Filesystem
         private static readonly string _appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         public static string GetAppDataFolder() => Path.Combine(_appDataPath, "StarfieldVT");
         public static string GetLogDir() => Path.Combine(GetAppDataFolder(), "logs");
-        public static string GetFfmpegDir() => Path.Combine(GetAppDataFolder(), "ffmpeg");
         public static string GetTempDir() => Path.Combine(Path.GetTempPath(), "StarfieldVT");
     }
 }
