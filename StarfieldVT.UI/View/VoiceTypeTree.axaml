@@ -2,10 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:StarfieldVT.UI.ViewModel"
              xmlns:models="using:StarfieldVT.Core.Models"
-             x:Class="StarfieldVT.UI.View.VoiceTypeTree"
-             x:DataType="local:VoiceTypeTreeViewModel">
+             x:Class="StarfieldVT.UI.View.VoiceTypeTree">
+    <!-- The view model goes on the TreeView only (set in code), so this control keeps the
+         window's DataContext and its SearchText binding keeps working. -->
     <Grid>
-        <TreeView Name="EsmTreeView" ItemsSource="{Binding Masters.Result}"
+        <TreeView Name="EsmTreeView" x:DataType="local:VoiceTypeTreeViewModel" ItemsSource="{Binding Masters.Result}"
                   SelectionChanged="EsmTreeView_OnSelectionChanged">
             <TreeView.DataTemplates>
                 <TreeDataTemplate DataType="models:Master" ItemsSource="{Binding VoiceTypes}">

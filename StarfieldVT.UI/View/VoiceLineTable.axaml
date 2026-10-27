@@ -33,6 +33,8 @@
             </Grid.ColumnDefinitions>
             <TextBlock Margin="5" Text="Filter" VerticalAlignment="Center" />
             <TextBox Grid.Column="1" Margin="0, 5" VerticalContentAlignment="Center"
+                     Watermark="Search dialogue text, e.g. &quot;good to see you&quot; or capt*"
+                     ToolTip.Tip="Searches the selected plugin or voice type, or every plugin when nothing is selected"
                      Text="{Binding VoiceLineFilterText}" />
             <Button Grid.Column="2" Name="ExportBtn" Margin="10, 5" Content="Export"
                     Click="ExportBtn_OnClick" />

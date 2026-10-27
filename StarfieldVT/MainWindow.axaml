@@ -42,8 +42,11 @@
             <TextBlock Grid.Column="0" Text="&#x1F50D;" Margin="10" VerticalAlignment="Center" FontSize="20" />
             <TextBox Grid.Column="1" Height="30" FontSize="18" Margin="5,10,10,10"
                      VerticalContentAlignment="Center"
+                     Watermark="Filter voice types, e.g. sarah"
+                     ToolTip.Tip="Narrows the plugin/voice type tree above by voice type name"
                      Text="{Binding Path=SearchBarText, Mode=TwoWay}" />
-            <Button Grid.Column="2" Content="&#x23F9;" Height="30" Width="30" Click="StopButton_OnClick" />
+            <Button Grid.Column="2" Content="&#x23F9;" Height="30" Width="30" Click="StopButton_OnClick"
+                    ToolTip.Tip="Stop playback" />
         </Grid>
 
         <starfieldVtUi:VoiceLineTable DataContext="{Binding VoiceLineTableViewModel}"

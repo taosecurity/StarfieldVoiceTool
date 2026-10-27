@@ -55,7 +55,7 @@ public partial class VoiceTypeTree : UserControl
             viewModel.ProgressChanged += VoiceTypeTreeViewModelOnProgressChanged;
             viewModel.FilterVoiceTypes(SearchText);
             VoiceTypeTreeViewModel = viewModel;
-            DataContext = viewModel;
+            EsmTreeView.DataContext = viewModel;
         }
         finally
         {
