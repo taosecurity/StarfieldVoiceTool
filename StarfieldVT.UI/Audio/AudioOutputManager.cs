@@ -8,8 +8,8 @@ namespace StarfieldVT.UI.Audio;
 
 public class AudioOutputManager
 {
-    private readonly LibVLC _libVlc;
     private readonly object _lock = new();
+    private LibVLC? _libVlc;
     private MediaPlayer? _mediaPlayer;
 
     private AudioOutputManager()
@@ -28,8 +28,6 @@ public class AudioOutputManager
             throw new InvalidOperationException(
                 "Playback needs VLC. On Debian or Ubuntu: sudo apt install libvlc5 vlc-plugin-base", e);
         }
-
-        _libVlc = new LibVLC("--no-video");
     }
 
     /// <summary>
@@ -59,22 +57,31 @@ public class AudioOutputManager
     {
         lock (_lock)
         {
-            if (_mediaPlayer != null)
-            {
-                _mediaPlayer.Stop();
-                _mediaPlayer.Dispose();
-                _mediaPlayer = null;
-            }
+            ReleasePlayer();
 
-            // The player is kept until the next sound starts (or Stop). It must not be disposed on
-            // EndReached: that fires when VLC has finished decoding, while the audio output may still
-            // be playing buffered audio. With high-latency outputs (WSLg's PulseAudio, Bluetooth),
-            // disposing then cut off short lines entirely.
+            // A fresh LibVLC instance per sound (about 3 ms). One long-lived instance keeps its audio
+            // output after the first stream, and on WSLg's PulseAudio every later stream through that
+            // kept output ended at once without sound: measured 1 of 12 short lines played with one
+            // instance, 8 of 8 with an instance per line.
+            //
+            // The player is kept until the next sound starts or the app exits. It must not be disposed
+            // on EndReached: that fires when VLC has finished decoding, while the audio output may
+            // still be playing buffered audio (high-latency outputs like WSLg or Bluetooth).
+            _libVlc = new LibVLC("--no-video");
             _mediaPlayer = new MediaPlayer(_libVlc);
 
             using var media = new Media(_libVlc, soundPath, FromType.FromPath);
             _mediaPlayer.Play(media);
         }
+    }
+
+    private void ReleasePlayer()
+    {
+        _mediaPlayer?.Stop();
+        _mediaPlayer?.Dispose();
+        _mediaPlayer = null;
+        _libVlc?.Dispose();
+        _libVlc = null;
     }
 
     public void StopSound()
