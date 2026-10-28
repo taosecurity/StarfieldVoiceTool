@@ -57,7 +57,8 @@ public class VoiceTypeTreeViewModel
                     cacheManager.BustCache();
                 }
 
-                var fingerprint = GameFingerprint.Compute(dataFolderPath);
+                var includeAllModVoices = SettingsManager.Instance.IncludeAllModVoices;
+                var fingerprint = GameFingerprint.Compute(dataFolderPath, includeAllModVoices);
                 var treeCache = cacheManager.TryToLoadCache(fingerprint);
                 if (treeCache != null)
                 {
@@ -65,7 +66,8 @@ public class VoiceTypeTreeViewModel
                 }
 
                 LuceneManager.Instance().DeleteIndex();
-                return new DialogueTreeBuilder().BuildTree(dataFolderPath, fingerprint, progress, cancellationToken);
+                return new DialogueTreeBuilder().BuildTree(dataFolderPath, fingerprint, includeAllModVoices, progress,
+                    cancellationToken);
             }, cancellationToken);
 
             _searchableMasters = tree;

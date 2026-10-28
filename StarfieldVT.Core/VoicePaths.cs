@@ -51,6 +51,26 @@ public static class VoicePaths
         return suffix.StartsWith("_en") && (suffix.Length == 3 || !char.IsLetter(suffix[3]));
     }
 
+    /// <summary>
+    /// True for archives localized to a language other than English, e.g. "Mod - Main_de" or
+    /// "Mod - Voices_fr_ps". Only the part after " - " is checked, so a mod named "Make_it_so" is fine.
+    /// </summary>
+    public static bool IsOtherLanguageArchive(string archiveNameWithoutExtension)
+    {
+        var name = archiveNameWithoutExtension.ToLowerInvariant();
+        var dash = name.LastIndexOf(" - ", StringComparison.Ordinal);
+        var suffix = dash >= 0 ? name[(dash + 3)..] : name;
+        return suffix.Split('_').Skip(1).Any(OtherLanguageCodes.Contains);
+    }
+
+    // the languages Starfield ships besides English
+    private static readonly HashSet<string> OtherLanguageCodes = ["de", "es", "fr", "it", "ja", "pl", "ptbr", "zhhans"];
+
+    /// <summary>True for a .wem under sound/voice/, where the game looks for dialogue audio.</summary>
+    public static bool IsVoiceFilePath(string archivePath) =>
+        archivePath.Replace('\\', '/').StartsWith("sound/voice/", StringComparison.OrdinalIgnoreCase)
+        && archivePath.EndsWith(".wem", StringComparison.OrdinalIgnoreCase);
+
     public static bool ArchivePathsEqual(string a, string b) =>
         string.Equals(a.Replace('\\', '/'), b.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
 }

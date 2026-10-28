@@ -27,7 +27,8 @@ public partial class VoiceLineTable : UserControl
     public VoiceLineTableViewModel? ViewModel => DataContext as VoiceLineTableViewModel;
 
     private static IArchiveFile FindArchiveFile(VoiceLine voiceLine) =>
-        VoiceArchiveManager.Shared(StarfieldManager.GetGamePath()).FindFile(voiceLine.Filename)
+        VoiceArchiveManager.Shared(StarfieldManager.GetGamePath(), SettingsManager.Instance.IncludeAllModVoices)
+            .FindFile(voiceLine.Filename)
         ?? throw new FileNotFoundException(
             $"Could not find {voiceLine.Filename} in the voice archives for {voiceLine.ModName}");
 

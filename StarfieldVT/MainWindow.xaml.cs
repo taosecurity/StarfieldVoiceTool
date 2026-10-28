@@ -62,6 +62,7 @@ namespace StarfieldVT
         {
             InitializeComponent();
             DataContext = _mainWindowModel;
+            IncludeAllModVoicesMenuItem.IsChecked = SettingsManager.Instance.IncludeAllModVoices;
             _mainWindowModel.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(MainWindowModel.SearchBarText)) ShowVoiceTypeFilterInTable();
@@ -234,6 +235,25 @@ namespace StarfieldVT
                 Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
             {
                 desktop.Shutdown();
+            }
+        }
+
+        private async void IncludeAllModVoices_Click(object sender, RoutedEventArgs e)
+        {
+            var settings = SettingsManager.Instance;
+            settings.IncludeAllModVoices = !settings.IncludeAllModVoices;
+            IncludeAllModVoicesMenuItem.IsChecked = settings.IncludeAllModVoices;
+            if (!settings.HasValidGamePath()) return;
+
+            try
+            {
+                // the option is part of the cache fingerprint, so this rebuilds the tree
+                await ReloadTree(bustCache: false);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to reload after changing the mod voices option");
+                ProgressText.Text = $"Failed to reload: {ex.Message}";
             }
         }
 

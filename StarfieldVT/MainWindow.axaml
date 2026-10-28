@@ -25,6 +25,13 @@
                 <MenuItem Header="Delete Cache" Click="DeleteCache_Click" />
                 <MenuItem Header="Exit" Click="MenuItem_OnClick" />
             </MenuItem>
+            <MenuItem Header="_Options">
+                <MenuItem Name="IncludeAllModVoicesMenuItem"
+                          Header="Include voices from all mod archives and loose files"
+                          ToggleType="CheckBox"
+                          Click="IncludeAllModVoices_Click"
+                          ToolTip.Tip="Also finds mod voices packed in archives without &quot; - Voices&quot; in the name (e.g. &quot;MyMod - Main.ba2&quot;) and loose .wem files in Data\Sound\Voice. Loading takes longer." />
+            </MenuItem>
         </Menu>
 
         <starfieldVtUi:VoiceTypeTree Grid.Row="2" Grid.Column="0" Name="VoiceTypeTree"

@@ -14,6 +14,9 @@ namespace StarfieldVT.Core;
 public class AppSettings
 {
     public string? StarfieldDataPath { get; set; }
+
+    /// <summary>Also read mod voices from archives without " - Voices" in the name, and loose files.</summary>
+    public bool IncludeAllModVoices { get; set; }
 }
 
 public class SettingsManager
@@ -37,6 +40,16 @@ public class SettingsManager
         set
         {
             _settings.StarfieldDataPath = value;
+            Save();
+        }
+    }
+
+    public bool IncludeAllModVoices
+    {
+        get => _settings.IncludeAllModVoices;
+        set
+        {
+            _settings.IncludeAllModVoices = value;
             Save();
         }
     }

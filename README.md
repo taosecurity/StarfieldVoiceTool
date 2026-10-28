@@ -15,13 +15,14 @@ This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldV
 2. Extract to a folder of your choice
 
 ## Running
-1. Ensure your load order in `plugins.txt` or your Mod Manager is set with the plugins you want the tool to scan
+1. Ensure your load order in `plugins.txt` or your Mod Manager is set with the plugins you want the tool to scan. If there is no `%LOCALAPPDATA%\Starfield\Plugins.txt` (for example, mods copied into `Data` by hand), the tool reads every plugin in the `Data` folder.
 2. Run `StarfieldVT.exe` (`StarfieldVT` on Linux). The first start takes a while as it goes through your load order and finds the dialogue lines; progress is shown at the bottom of the window.
 3. The results are cached in `%LOCALAPPDATA%\StarfieldVT\` (`cache.json` plus a search index in `index\`).
-   * The cache is rebuilt automatically when the tool is updated, or when the game's plugins, archives, data folder or load order change.
+   * The cache is rebuilt automatically when the tool is updated, or when the game's plugins, archives, data folder or load order change (and loose voice files, with the mod voices option on).
    * **File** → **Delete Cache** forces a rebuild.
 4. Select a plugin or voice type on the left. Double-click a line to play it, or select it and press **Export** to save it as a `.wav` wherever you choose.
-5. The filter box under the lines searches the dialogue text. It supports [Lucene syntax](https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) such as `"exact phrase"`, `capt*` and `ship AND crew`. With nothing selected, it searches every plugin.
+5. **Mod voices.** By default the tool reads voice files from archives named `<Name> - Voices….ba2`, which is how Bethesda and most mods pack them. Some mods put their voices in another archive, e.g. `MyMod - Main.ba2`, or install loose `.wem` files in `Data\Sound\Voice`. To find those, turn on **Options** → **Include voices from all mod archives and loose files**. This reads every archive (archives localized to other languages are skipped) and takes a little longer. Loose files take priority over archives, as in the game.
+6. The filter box under the lines searches the dialogue text. It supports [Lucene syntax](https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) such as `"exact phrase"`, `capt*` and `ship AND crew`. With nothing selected, it searches every plugin.
 
 ## Linux
 Extract the Linux zip and run `./StarfieldVT`. Playback uses the system's VLC library, and minimal installs may lack the X11 and font libraries the window needs. On Debian or Ubuntu:
@@ -46,6 +47,10 @@ Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Unreleased
+* New option **Options** → **Include voices from all mod archives and loose files**: finds mod voices packed in archives without ` - Voices` in the name (for example `MyMod - Main.ba2`) and loose `.wem` files under `Data\Sound\Voice`. Off by default. Turning it on or off rebuilds the cache.
+* Without a `Plugins.txt` (mods copied into `Data` by hand, no mod manager), the tool now reads every plugin in the `Data` folder instead of only the game's built-in ones. Plugins are ordered after their masters; a plugin whose master is missing is skipped and noted in the log.
 
 ## Changes in 0.6.3
 Linux fixes, found by testing the Linux build for the first time:

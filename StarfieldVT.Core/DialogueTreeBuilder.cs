@@ -2,6 +2,7 @@
 using System.Runtime.InteropServices;
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Environments;
+using Mutagen.Bethesda.Plugins;
 using Mutagen.Bethesda.Plugins.Order;
 using Mutagen.Bethesda.Starfield;
 using Mutagen.Bethesda.Strings;
@@ -24,7 +25,7 @@ namespace StarfieldVT.Core
         private int _lineCount = 0;
         private int _unvoicedCount = 0;
 
-        public List<Master> BuildTree(string dataFolderPath, string gameFingerprint,
+        public List<Master> BuildTree(string dataFolderPath, string gameFingerprint, bool includeAllModVoices,
             IProgress<EsmLoadingProgress> progress, CancellationToken cancellationToken)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -32,12 +33,10 @@ namespace StarfieldVT.Core
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 EnsureLinuxPluginsFile(dataFolderPath);
 
-            using var env = GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
-                .WithTargetDataFolder(dataFolderPath)
-                .Build();
+            using var env = BuildEnvironment(dataFolderPath);
 
             progress.Report(new EsmLoadingProgress { Message = "Reading voice archives..." });
-            var wemMap = new VoiceArchiveManager(dataFolderPath).BuildWemMap();
+            var wemMap = new VoiceArchiveManager(dataFolderPath, includeAllModVoices).BuildWemMap();
 
             var plugins = env.LoadOrder.ListedOrder.Where(esm => esm is { Enabled: true, ExistsOnDisk: true }).ToList();
             var tree = new List<Master>();
@@ -117,6 +116,31 @@ namespace StarfieldVT.Core
             }).OrderBy(voiceType => voiceType.EditorId).ToList();
 
             return voiceTypes.Count > 0 ? new Master(esm.FileName, voiceTypes) : null;
+        }
+
+        /// <summary>
+        /// The game environment for the data folder. On Windows without a Plugins.txt, the plugins in the
+        /// Data folder are added after the game's built-in ones, as the Linux Plugins.txt fallback does.
+        /// </summary>
+        private static IGameEnvironment<IStarfieldMod, IStarfieldModGetter> BuildEnvironment(string dataFolderPath)
+        {
+            var env = GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
+                .WithTargetDataFolder(dataFolderPath)
+                .Build();
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || File.Exists(GameFingerprint.PluginsTxtPath))
+                return env;
+
+            var listed = env.LoadOrder.ListedOrder.Select(listing => listing.ModKey).ToList();
+            var unlisted = LoadOrderFallback.FindUnlistedPlugins(dataFolderPath, listed.Select(key => key.FileName.String));
+            if (unlisted.Count == 0) return env;
+
+            Log.Information("No Plugins.txt at {Path}; also reading {Plugins} from the Data folder",
+                GameFingerprint.PluginsTxtPath, unlisted);
+            env.Dispose();
+            return GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
+                .WithTargetDataFolder(dataFolderPath)
+                .WithLoadOrder(listed.Concat(unlisted.Select(name => ModKey.FromFileName(name))).ToArray())
+                .Build();
         }
 
         private static void EnsureLinuxPluginsFile(string dataFolderPath)

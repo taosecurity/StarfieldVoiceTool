@@ -41,6 +41,52 @@ public class GameFingerprintTests
     }
 }
 
+public class LooseVoiceFileTests
+{
+    [Fact]
+    public void GetLooseVoiceFiles_FindsWemUnderSoundVoiceInAnyCase()
+    {
+        using var dir = new TempDir();
+        var voiceType = Path.Combine(dir.Path, "sound", "VOICE", "MyMod.esp", "npcfx");
+        Directory.CreateDirectory(voiceType);
+        File.WriteAllBytes(Path.Combine(voiceType, "00000001.wem"), [1, 2, 3]);
+        File.WriteAllText(Path.Combine(voiceType, "00000001.ffxanim"), "lip sync, not audio");
+
+        var files = VoiceArchiveManager.GetLooseVoiceFiles(dir.Path);
+
+        var file = Assert.Single(files);
+        Assert.Equal("sound/VOICE/MyMod.esp/npcfx/00000001.wem", file.Path);
+        Assert.Equal("MyMod.esp", VoicePaths.GetPluginFolder(file.Path));
+        Assert.Equal([1, 2, 3], file.GetBytes());
+        Assert.Equal(3u, file.Size);
+    }
+
+    [Fact]
+    public void GetLooseVoiceFiles_IsEmptyWithoutVoiceFolder()
+    {
+        using var dir = new TempDir();
+        Assert.Empty(VoiceArchiveManager.GetLooseVoiceFiles(dir.Path));
+    }
+
+    [Fact]
+    public void Fingerprint_TracksOptionAndLooseVoiceFilesOnlyWhenEnabled()
+    {
+        using var dir = new TempDir();
+        var data = Path.Combine(dir.Path, "Data");
+        var voiceType = Path.Combine(data, "Sound", "Voice", "MyMod.esp", "npcfx");
+        Directory.CreateDirectory(voiceType);
+        var pluginsTxt = Path.Combine(dir.Path, "Plugins.txt");
+
+        var off = GameFingerprint.Compute(data, pluginsTxt);
+        var on = GameFingerprint.Compute(data, pluginsTxt, includeAllModVoices: true);
+        Assert.NotEqual(off, on);
+
+        File.WriteAllBytes(Path.Combine(voiceType, "00000001.wem"), [1]);
+        Assert.Equal(off, GameFingerprint.Compute(data, pluginsTxt));
+        Assert.NotEqual(on, GameFingerprint.Compute(data, pluginsTxt, includeAllModVoices: true));
+    }
+}
+
 public class CacheManagerTests
 {
     private static List<Master> SampleTree() =>
