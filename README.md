@@ -65,6 +65,7 @@ The release builds bundle third-party libraries, including [Mutagen](https://git
 
 ## Changes in 0.8.0
 * Fixed: with a `Plugins.txt` that lists plugins missing from the chosen `Data` folder (a second Starfield install, or a mod manager's load order for another folder), loading failed with "Failed to load voice types" and no lines were shown. Those plugins, and any plugin whose masters are missing, are now skipped and listed in the log.
+* Fixed: mods built on a Creation (for example Terran Armada patches, which need `SFBGS050.esm`) made loading fail the same way, because the game loads Creations from its own catalog rather than `Plugins.txt`. Such masters are now loaded when they are in the `Data` folder, and the log lists them.
 * Fixed: each played or exported line left the temporary `.wem` and the Vorbis codebook file open (a bug in the bundled BnkExtractor's ww2ogg port, now fixed in [taosecurity/BnkExtractor](https://github.com/taosecurity/BnkExtractor)). A failed conversion no longer leaves a half-written `.ogg` behind.
 * New command-line options `--verbose` and `--log <file>` for troubleshooting; see [Troubleshooting](#troubleshooting). Voice file conversion errors, which used to go only to a console window, are now in the log, as are unexpected errors that close the tool.
 * The release zips include this README and [AGENTS.md](AGENTS.md).
