@@ -44,4 +44,10 @@
     <None Include="..\licenses\**" LinkBase="licenses" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- The README (options, log location) and the AGENTS.md steps for AI assistants go in every zip too. -->
+  <ItemGroup>
+    <None Include="..\README.md" Link="README.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\AGENTS.md" Link="AGENTS.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

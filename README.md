@@ -1,9 +1,13 @@
 ﻿![Workflow](https://github.com/taosecurity/StarfieldVoiceTool/actions/workflows/dotnet-desktop.yml/badge.svg?branch=main)  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # Starfield Voice Tool
-This tool is used to find voice lines by voice type in Starfield, filter them, play them and export them.
+Browse every voiced line in Starfield and in your installed mods, by plugin and voice type; search the dialogue text, listen to any line and save it as a `.wav`. Useful for finding a companion's lines, checking what a mod's voice files say, or getting audio clips for your own mod or video.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-070).
+**First try:** download the zip for your system from [Releases](https://github.com/taosecurity/StarfieldVoiceTool/releases), extract it, and run `StarfieldVT.exe`. Steam installs are found automatically; otherwise point it at your game's `Data` folder. Once loading finishes, pick **Starfield.esm** on the left, type `captain` in the filter box under the lines, and double-click a line to hear it.
+
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-080).
+
+**For AI assistants:** see [AGENTS.md](AGENTS.md) for install steps, options, log locations and limits.
 
 ## Requirements
 * Starfield must be installed. Steam installs are detected automatically; otherwise you'll be asked for the game's `Data` folder (the one containing `Starfield.esm`).
@@ -37,7 +41,18 @@ sudo apt install libvlc5 vlc-plugin-base libfontconfig1 libice6 libsm6 libx11-6 
 * WSL works too, with the game's Windows install under `/mnt/c/...`. Loading is slower there, because WSL reads Windows files through a network-style link.
 
 ## Troubleshooting
-Log files are in `%LOCALAPPDATA%\StarfieldVT\logs`.
+The tool always writes a log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<date>.log` on Windows, `~/.local/share/StarfieldVT/logs/` on Linux. One file per day; the last 5 are kept. The log records the version, the Data folder and load order it read, which plugins it skipped and why, each archive read, and every playback or export error.
+
+For more detail, start the tool from a command prompt (or a shortcut) with these options:
+
+| Option | What it does |
+|---|---|
+| `--verbose` (or `-v`) | Also logs every quest and dialogue topic parsed, every search, and each step of converting a voice file |
+| `--log <file>` | Writes the log to `<file>` instead of the daily file, e.g. `--log C:\temp\starfieldvt.log` |
+
+For example, in a command prompt or PowerShell window opened in the tool's folder: `.\StarfieldVT.exe --verbose --log C:\temp\starfieldvt.log` (Linux: `./StarfieldVT --verbose --log /tmp/starfieldvt.log`). Attach that file when you report a problem.
+
+If a plugin's lines are missing, search the log for `skipped` or `Skipping`. `Plugins.txt` is shared by every Starfield install on the PC, so with more than one install (or a mod manager pointed at another folder) it can list plugins that aren't in the `Data` folder you chose. The tool skips those, and the log lists them.
 
 If the voice lines look wrong or stale, use **File** → **Delete Cache**, or delete `%LOCALAPPDATA%\StarfieldVT\cache.json` and the `index` folder.
 
@@ -47,6 +62,12 @@ Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Changes in 0.8.0
+* Fixed: with a `Plugins.txt` that lists plugins missing from the chosen `Data` folder (a second Starfield install, or a mod manager's load order for another folder), loading failed with "Failed to load voice types" and no lines were shown. Those plugins, and any plugin whose masters are missing, are now skipped and listed in the log.
+* Fixed: each played or exported line left the temporary `.wem` and the Vorbis codebook file open (a bug in the bundled BnkExtractor's ww2ogg port, now fixed in [taosecurity/BnkExtractor](https://github.com/taosecurity/BnkExtractor)). A failed conversion no longer leaves a half-written `.ogg` behind.
+* New command-line options `--verbose` and `--log <file>` for troubleshooting; see [Troubleshooting](#troubleshooting). Voice file conversion errors, which used to go only to a console window, are now in the log, as are unexpected errors that close the tool.
+* The release zips include this README and [AGENTS.md](AGENTS.md).
 
 ## Changes in 0.7.0
 * New option **Options** → **Include voices from all mod archives and loose files**: finds mod voices packed in archives without ` - Voices` in the name (for example `MyMod - Main.ba2`) and loose `.wem` files under `Data\Sound\Voice`. Off by default. Turning it on or off rebuilds the cache.
