@@ -58,7 +58,8 @@ All tests pass. To also check voice file conversion on real files, set `STARFIEL
 | Start the tool | `.\StarfieldVT.exe` (Linux: `./StarfieldVT`); from source: `dotnet run --project StarfieldVT -c Release` |
 | Detailed log for a bug report | `.\StarfieldVT.exe --verbose --log "$env:TEMP\starfieldvt.log"` (from source: `dotnet run --project StarfieldVT -c Release -- --verbose --log "$env:TEMP\starfieldvt.log"`) |
 | Choose another game folder | In the app: **File** → **Set Game Path** (the folder must contain `Starfield.esm`) |
-| Include mod voices packed outside `- Voices` archives or as loose files | In the app: **Options** → **Include voices from all mod archives and loose files** |
+| Mod voices packed outside `- Voices` archives (e.g. `- Main.ba2`) or as loose files | Read by default. **Options** → **Include voices from all mod archives and loose files** turns that off (reads only `- Voices` archives, slightly faster) |
+| A plugin seems missing | Plugins are listed by file name (a Creation's file name can differ from its title: Watchtower is `kinggathcreations_spaceship.esm`), and only plugins with voiced lines are listed. Check the option above, then search the log for `skipped` |
 | Rebuild the voice line list | In the app: **File** → **Delete Cache**; or delete `cache.json` and `index\` (section 6) |
 | Find one line | Select a plugin or voice type on the left, then type in the filter box under the lines (Lucene syntax: `"exact phrase"`, `capt*`, `ship AND crew`) |
 | Export a line | Select it, press **Export**, choose where to save the `.wav` |

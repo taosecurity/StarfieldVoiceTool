@@ -15,8 +15,29 @@ public class AppSettings
 {
     public string? StarfieldDataPath { get; set; }
 
-    /// <summary>Also read mod voices from archives without " - Voices" in the name, and loose files.</summary>
-    public bool IncludeAllModVoices { get; set; }
+    /// <summary>
+    /// Also read mod voices from archives without " - Voices" in the name, and loose files. On by
+    /// default since 0.8.0: many mods (Astrid, for one) pack their voices in a " - Main" archive.
+    /// </summary>
+    public bool IncludeAllModVoices { get; set; } = true;
+
+    /// <summary>Settings format version; files from before 0.8.0 have none (0).</summary>
+    public int SettingsVersion { get; set; }
+
+    public const int CurrentVersion = 2;
+
+    /// <summary>
+    /// Bring settings saved by an older version up to date. Returns true if anything changed, so the
+    /// caller can save them. Before 0.8.0 every saved file held IncludeAllModVoices = false (the old
+    /// default), so it is switched on once; users who want it off can turn it off again.
+    /// </summary>
+    public bool Upgrade()
+    {
+        if (SettingsVersion >= CurrentVersion) return false;
+        if (SettingsVersion < 2) IncludeAllModVoices = true;
+        SettingsVersion = CurrentVersion;
+        return true;
+    }
 }
 
 public class SettingsManager
@@ -32,6 +53,16 @@ public class SettingsManager
     private SettingsManager()
     {
         _settings = Load();
+        if (File.Exists(SettingsFilePath) && _settings.Upgrade())
+        {
+            Log.Information("Updated settings to version {Version}: \"Include voices from all mod archives and loose files\" is now on (the new default)",
+                AppSettings.CurrentVersion);
+            Save();
+        }
+        else
+        {
+            _settings.SettingsVersion = AppSettings.CurrentVersion;
+        }
     }
 
     public string? StarfieldDataPath
