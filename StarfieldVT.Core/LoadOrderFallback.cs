@@ -61,21 +61,59 @@ public static class LoadOrderFallback
     /// </summary>
     public static List<string> KeepLoadable(IReadOnlyList<string> enabledInOrder,
         IReadOnlyDictionary<string, IReadOnlyList<string>> onDisk,
-        out List<string> notOnDisk, out List<(string Plugin, string Master)> missingMasters)
+        out List<string> notOnDisk, out List<(string Plugin, string Master)> missingMasters) =>
+        KeepLoadable(enabledInOrder, onDisk, out notOnDisk, out missingMasters, out _);
+
+    /// <summary>
+    /// As above, and also: a master that is in the Data folder but not in the load order is added just
+    /// before the first plugin that needs it (with its own masters first). The game loads Creations such
+    /// as SFBGS050.esm from its content catalog, not from Plugins.txt, so Mutagen doesn't list them, but
+    /// mods built on them need them. Those are returned in <paramref name="addedMasters"/>.
+    /// </summary>
+    public static List<string> KeepLoadable(IReadOnlyList<string> enabledInOrder,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> onDisk,
+        out List<string> notOnDisk, out List<(string Plugin, string Master)> missingMasters,
+        out List<string> addedMasters)
     {
         var kept = new List<string>();
         var keptSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var added = new List<string>();
         notOnDisk = new List<string>();
         missingMasters = new List<(string, string)>();
+
+        // add a master that's on disk (and its masters, first); null when it loaded, else the missing file
+        string? TryAddMaster(string master, HashSet<string> visiting)
+        {
+            if (keptSet.Contains(master)) return null;
+            if (!onDisk.TryGetValue(master, out var masters) || !visiting.Add(master)) return master;
+            foreach (var inner in masters)
+            {
+                var missingInner = TryAddMaster(inner, visiting);
+                if (missingInner != null) return missingInner;
+            }
+
+            kept.Add(master);
+            keptSet.Add(master);
+            added.Add(master);
+            return null;
+        }
+
         foreach (var name in enabledInOrder)
         {
+            if (keptSet.Contains(name)) continue; // already added as another plugin's master
             if (!onDisk.TryGetValue(name, out var masters))
             {
                 notOnDisk.Add(name);
                 continue;
             }
 
-            var missing = masters.FirstOrDefault(master => !keptSet.Contains(master));
+            string? missing = null;
+            foreach (var master in masters)
+            {
+                missing = TryAddMaster(master, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+                if (missing != null) break;
+            }
+
             if (missing != null)
             {
                 missingMasters.Add((name, missing));
@@ -86,6 +124,7 @@ public static class LoadOrderFallback
             keptSet.Add(name);
         }
 
+        addedMasters = added;
         return kept;
     }
 

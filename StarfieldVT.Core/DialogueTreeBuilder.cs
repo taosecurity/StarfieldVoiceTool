@@ -119,32 +119,32 @@ namespace StarfieldVT.Core
         }
 
         /// <summary>
-        /// The game environment for the data folder. Plugins in the load order that aren't in this Data
-        /// folder (or whose masters aren't) are dropped, since Mutagen can't read any plugin otherwise. On
-        /// Windows without a Plugins.txt, the plugins in the Data folder are added after the game's built-in
-        /// ones, as the Linux Plugins.txt fallback does.
+        /// The game environment for the data folder. The load order is read first, without loading any
+        /// plugin, and repaired, because Mutagen's Build() fails if any plugin's master isn't loaded before
+        /// it. Plugins that aren't in this Data folder (or whose masters aren't) are dropped. Masters that
+        /// are on disk but not in the order, such as Creations the game loads from its content catalog
+        /// (SFBGS050.esm and others), are added before the first plugin that needs them. On Windows without
+        /// a Plugins.txt, the other plugins in the Data folder are added after the game's built-in ones, as
+        /// the Linux Plugins.txt fallback does.
         /// </summary>
         private static IGameEnvironment<IStarfieldMod, IStarfieldModGetter> BuildEnvironment(string dataFolderPath)
         {
-            // read the load order without loading any plugin: Mutagen's Build() fails on every plugin
-            // when the order lists plugins that aren't in this Data folder
             var noPluginsTxt = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !File.Exists(GameFingerprint.PluginsTxtPath);
             var enabled = LoadOrder.GetLoadOrderListings(GameRelease.Starfield, dataFolderPath, throwOnMissingMods: false)
                 .Where(listing => listing.Enabled)
                 .Select(listing => listing.ModKey.FileName.String)
                 .ToList();
-            var allOnDisk = enabled.All(name => File.Exists(Path.Combine(dataFolderPath, name)));
-            Log.Information("Load order has {Count} enabled plugins{Missing}", enabled.Count,
-                allOnDisk ? "" : ", some of them not in this Data folder");
-            if (allOnDisk && !noPluginsTxt)
-            {
-                return GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
-                    .WithTargetDataFolder(dataFolderPath)
-                    .Build();
-            }
+            Log.Information("Load order has {Count} enabled plugins", enabled.Count);
 
             var onDisk = LoadOrderFallback.ReadDataFolderPlugins(dataFolderPath);
-            var kept = LoadOrderFallback.KeepLoadable(enabled, onDisk, out var notOnDisk, out var missingMasters);
+            var kept = LoadOrderFallback.KeepLoadable(enabled, onDisk, out var notOnDisk, out var missingMasters,
+                out var addedMasters);
+            if (addedMasters.Count > 0)
+            {
+                Log.Information("Also loading {Plugins}: masters of enabled plugins that are in the Data folder " +
+                                "but not in the load order (the game loads Creations from its content catalog)",
+                    addedMasters);
+            }
             if (notOnDisk.Count > 0)
             {
                 Log.Warning("{Count} plugins in the load order are not in {DataFolder} and are skipped " +

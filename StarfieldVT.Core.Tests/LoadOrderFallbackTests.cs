@@ -46,6 +46,30 @@ public class LoadOrderFallbackTests
     }
 
     [Fact]
+    public void KeepLoadable_AddsCreationMastersThatAreOnDiskButNotListed()
+    {
+        // the game loads Creations such as SFBGS050.esm from its content catalog, not Plugins.txt
+        var enabled = new[] { "Starfield.esm", "Mod.esm", "TA Patch.esm", "SFBGS050.esm", "Later.esm" };
+        var onDisk = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Starfield.esm"] = [],
+            ["Mod.esm"] = ["Starfield.esm"],
+            ["sfbgs00d.esm"] = ["Starfield.esm"],
+            ["SFBGS050.esm"] = ["Starfield.esm", "SFBGS00D.esm"],
+            ["TA Patch.esm"] = ["Starfield.esm", "Mod.esm", "SFBGS050.esm"],
+            ["Later.esm"] = ["Starfield.esm"],
+        };
+
+        var kept = LoadOrderFallback.KeepLoadable(enabled, onDisk, out var notOnDisk, out var missingMasters,
+            out var added);
+
+        Assert.Equal(["Starfield.esm", "Mod.esm", "SFBGS00D.esm", "SFBGS050.esm", "TA Patch.esm", "Later.esm"], kept);
+        Assert.Equal(["SFBGS00D.esm", "SFBGS050.esm"], added);
+        Assert.Empty(notOnDisk);
+        Assert.Empty(missingMasters);
+    }
+
+    [Fact]
     public void ReadMasters_ReadsMastSubrecords()
     {
         using var dir = new TempDir();
