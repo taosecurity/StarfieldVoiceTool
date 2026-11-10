@@ -37,9 +37,11 @@ The **Sound Effects** tab lists every Wwise sound the game can load: the sound e
 3. Double-click a sound (or press ▶) to hear it. **Export** saves the selected sound as a `.wav`; with several selected, it asks for a folder and names each file `<Name>_<ID>.wav`.
 4. **Copy ID** and **Copy Events** put the selected sounds' Wwise IDs or event names on the clipboard, for use in your own mod or in the Creation Kit.
 
-The columns: **ID** is the Wwise ID (the sound's file is `sound\soundbanks\<ID>.wem`), **Events** are the Wwise events that can play it, **Bank** is the sound bank that lists it, **Source** is the archive it is read from, and **Replaces** names earlier archives that hold the same ID. When two archives hold the same sound, the one loaded later wins, as in the game: the base game's `WwiseSoundsPatch` archive replaces about 2,000 older sounds, and a mod can replace any sound the same way.
+The columns: **ID** is the Wwise ID (the sound's file is `sound\soundbanks\<ID>.wem`), **Events** are the Wwise events that can play it, **Bank** is the sound bank that lists it, **Source** is the archive it is read from (for a sound stored inside a sound bank, also the bank's file, e.g. `Starfield - WwiseSoundsPatch.ba2, inside 2286754810.bnk`), and **Replaces** names earlier archives that hold the same ID. When two archives hold the same sound, the one loaded later wins, as in the game: the base game's `WwiseSoundsPatch` archive replaces about 2,000 older sounds, and a mod can replace any sound the same way.
 
 The names and events come from the JSON files Wwise writes next to each sound bank, which the game and most mods ship. A sound that no bank names is listed by its ID in the **Other** group.
+
+Most sounds are separate `.wem` files, but a bank (`.bnk`) can also hold short sounds inside itself; in the base game these are the player character's sprint breathing (97 sounds in the `VOC` group). These are listed too. Two other kinds of data inside banks are left out because they aren't separate sounds: the opening of a sound whose full `.wem` is already listed (Wwise keeps it in the bank so playback can start at once), and data for Wwise effects such as reverb.
 
 ## Linux
 Extract the Linux zip and run `./StarfieldVT`. Playback uses the system's VLC library, and minimal installs may lack the X11 and font libraries the window needs. On Debian or Ubuntu:
@@ -69,7 +71,7 @@ For example, in a command prompt or PowerShell window opened in the tool's folde
 
 If a plugin's lines are missing, search the log for `skipped` or `Skipping`. `Plugins.txt` is shared by every Starfield install on the PC, so with more than one install (or a mod manager pointed at another folder) it can list plugins that aren't in the `Data` folder you chose. The tool skips those, and the log lists them.
 
-If the Sound Effects tab shows fewer sounds than expected, search the log for `Found` (the line `Found N sounds (M from mods ...)`) and, with `--verbose`, for each archive's count; an archive that can't be read is logged with `Could not read archive`.
+If the Sound Effects tab shows fewer sounds than expected, search the log for `Found` (the line `Found N sounds (M from mods ...)`) and, with `--verbose`, for each archive's count; an archive or bank that can't be read is logged with `Could not read archive` or `Could not read bank`.
 
 If the voice lines look wrong or stale, use **File** → **Delete Cache**, or delete `%LOCALAPPDATA%\StarfieldVT\cache.json` and the `index` folder.
 
@@ -79,6 +81,10 @@ Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Changes in 0.9.1
+* The Sound Effects tab also lists sounds stored inside sound bank (`.bnk`) files, not only separate `.wem` files. In the base game that adds 97 sounds (the player character's sprint breathing, in the `VOC` group); mods that keep short sounds in their banks show them too. They play and export like any other sound, and the **Source** column names the bank they're in.
+* Because the version changed, the voice line cache rebuilds once on first start.
 
 ## Changes in 0.9.0
 * New **Sound Effects** tab: browse, search, play and export the game's and your mods' sound effects and music (about 35,000 sounds on a Steam install with Shattered Space and a few Creations). See [Sound effects](#sound-effects). The idea comes from [starfield-wwizard](https://github.com/yak3d/starfield-wwizard) by yak3d, the original author of this tool; this version is written from scratch from the file formats (no code was taken from it) and adds mod sounds, export, events and Linux support.

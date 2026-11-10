@@ -4,7 +4,14 @@ using System.Text.Json;
 namespace StarfieldVT.Core.Sounds;
 
 /// <summary>A sound file named in a Wwise bank's JSON. ShortName is the source file, e.g. "WPN\Hand\X.wav".</summary>
-public sealed record SoundFileInfo(uint Id, string? ShortName, bool InMemory);
+public sealed record SoundFileInfo(uint Id, string? ShortName, bool InMemory, string? Path = null)
+{
+    /// <summary>
+    /// Data for a Wwise effects plugin (such as a reverb's impulse response), not a game sound:
+    /// Wwise puts these under "Plugins\".
+    /// </summary>
+    public bool IsPluginData => Path != null && Path.StartsWith("Plugins\\", StringComparison.OrdinalIgnoreCase);
+}
 
 /// <summary>A Wwise event and the streamed sounds it can play.</summary>
 public sealed record SoundEventInfo(uint Id, string Name, IReadOnlyList<uint> SoundIds);
@@ -59,7 +66,7 @@ public sealed record SoundbankJsonFile(IReadOnlyList<SoundBankInfo> Banks, IRead
     {
         foreach (var item in Array(parent, property))
         {
-            if (TryId(item, out var id)) yield return new SoundFileInfo(id, Text(item, "ShortName"), inMemory);
+            if (TryId(item, out var id)) yield return new SoundFileInfo(id, Text(item, "ShortName"), inMemory, Text(item, "Path"));
         }
     }
 

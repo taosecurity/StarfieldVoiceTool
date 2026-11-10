@@ -35,7 +35,7 @@
                 <DataGridTextColumn Header="Folder" Binding="{Binding Folder}" Width="180" />
                 <DataGridTextColumn Header="Events" Binding="{Binding EventsText}" Width="220" />
                 <DataGridTextColumn Header="Bank" Binding="{Binding Bank}" Width="130" />
-                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="200" />
+                <DataGridTextColumn Header="Source" Binding="{Binding SourceText}" Width="200" />
                 <DataGridTextColumn Header="Replaces" Binding="{Binding ReplacesText}" Width="*" />
             </DataGrid.Columns>
         </DataGrid>

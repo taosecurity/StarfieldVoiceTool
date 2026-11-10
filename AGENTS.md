@@ -78,7 +78,7 @@ Playing, exporting and choosing options are done in the window; there is no comm
 
 Inputs (read only):
 - the game's `Data` folder: plugins (`.esm`, `.esp`, `.esl`), `.ba2` archives, and loose files under `Data\Sound\Voice`;
-- for the Sound Effects tab: the `.wem` and bank `.json` files directly in `sound\soundbanks` of every archive (in load order) and of `Data\Sound\Soundbanks`; the later source wins for the same ID;
+- for the Sound Effects tab: the `.wem`, `.bnk` and bank `.json` files directly in `sound\soundbanks` of every archive (in load order) and of `Data\Sound\Soundbanks`; the later source wins for the same ID;
 - the load order in `%LOCALAPPDATA%\Starfield\Plugins.txt`. Without one, every plugin in `Data` is read, each after its masters. Plugins listed there but not in the chosen `Data` folder are skipped and listed in the log.
 
 Outputs:
@@ -98,7 +98,7 @@ Unknown options are ignored and noted in the log.
 
 Exit codes: 0 when the window is closed normally. An unexpected error closes the tool (the exit code is then the .NET runtime's crash code, not a tool-specific one) and is written to the log as `[FTL] Unhandled error`.
 
-Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.local/share/StarfieldVT/logs/`), one file per day, last 5 kept, or the `--log` file. Useful searches: `[ERR]`, `[WRN]`, `skipped`, `Skipping`, `ww2ogg:`; for sound effects, `Found` (the line `Found N sounds (M from mods, K without a name) in S sources`), `Could not read archive`, `Playing sound`, `Exporting sound`, `couldn't be converted`.
+Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.local/share/StarfieldVT/logs/`), one file per day, last 5 kept, or the `--log` file. Useful searches: `[ERR]`, `[WRN]`, `skipped`, `Skipping`, `ww2ogg:`; for sound effects, `Found` (the line `Found N sounds (M from mods, E inside banks, K without a name) in S sources`), `Could not read bank`, `Could not read archive`, `Playing sound`, `Exporting sound`, `couldn't be converted`.
 
 ## 7. Limits
 
@@ -107,7 +107,7 @@ Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.loc
 - English voice files only; archives localized to other languages are skipped.
 - Only enabled plugins in the load order (or, without `Plugins.txt`, every plugin in `Data`) are listed. Plugins whose masters are missing are skipped.
 - Lines without a voice file (the player's lines, unvoiced text) are not listed.
-- Sound effects: only streamed `.wem` files in `sound\soundbanks` are listed. Sounds embedded inside `.bnk` bank files (a few hundred short ones) are not, yet. Wwise PCM and Wwise Vorbis are converted; any other codec is refused with a message naming it. The sound list is not cached: it is read again each time the tool starts and the tab is opened.
+- Sound effects: streamed `.wem` files in `sound\soundbanks` are listed, and sounds stored inside the `.bnk` banks the game uses (the last copy of each bank wins). Inside banks, prefetch copies of streamed sounds and Wwise plugin data (reverb impulse responses, JSON `Path` starting `Plugins\`) are skipped. Wwise PCM and Wwise Vorbis are converted; any other codec is refused with a message naming it. The sound list is not cached: it is read again each time the tool starts and the tab is opened.
 - The window is required: it doesn't run headless or from a script.
 - Exported audio is the game's or a mod's content: the user may only share it as that content's license allows.
 

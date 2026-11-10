@@ -26,6 +26,12 @@ public sealed class SoundEffect
     /// <summary>The file's path inside the source, e.g. "sound/soundbanks/80667371.wem".</summary>
     public string FilePath { get; set; } = "";
 
+    /// <summary>For a sound stored inside a .bnk rather than as its own .wem: the bank's file name.</summary>
+    public string? EmbeddedIn { get; set; }
+
+    /// <summary>For the table: the source, and the bank for an embedded sound.</summary>
+    public string SourceText => EmbeddedIn == null ? Source : $"{Source}, inside {EmbeddedIn}";
+
     /// <summary>True unless the file comes from a base game archive ("Starfield - *.ba2").</summary>
     public bool FromMod { get; set; }
 

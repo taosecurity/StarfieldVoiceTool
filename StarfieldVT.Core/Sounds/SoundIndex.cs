@@ -67,6 +67,7 @@ public static class SoundIndex
         var perBank = new Dictionary<uint, SoundBankInfo>();
         var combinedFromMods = new List<SoundbankJsonFile>();
         var combinedFromGame = new List<SoundbankJsonFile>();
+        var bankFiles = new Dictionary<string, (SoundSource Source, IArchiveFile File)>();
         var sourcesWithSounds = 0;
 
         foreach (var source in sources)
@@ -89,6 +90,10 @@ public static class SoundIndex
                     }
 
                     winners[id] = (source, file);
+                }
+                else if (name.EndsWith(".bnk", StringComparison.OrdinalIgnoreCase))
+                {
+                    bankFiles[name.ToLowerInvariant()] = (source, file); // the later bank wins, as in the game
                 }
                 else if (name.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 {
@@ -146,15 +151,19 @@ public static class SoundIndex
             }
         }
 
-        var sounds = new List<SoundEffect>(winners.Count);
+        var pluginData = banks.Values.SelectMany(b => b.Files).Where(f => f.IsPluginData).Select(f => f.Id).ToHashSet();
+        var embedded = ReadEmbeddedSounds(bankFiles.Values, winners, pluginData);
+
+        var sounds = new List<SoundEffect>(winners.Count + embedded.Count);
         var unnamed = 0;
-        foreach (var (id, (source, file)) in winners)
+        void Add(uint id, SoundSource source, IArchiveFile file, string? embeddedIn)
         {
             var sound = new SoundEffect
             {
                 Id = id,
                 Source = source.Name,
                 FilePath = NormalizePath(file.Path),
+                EmbeddedIn = embeddedIn,
                 FromMod = !source.IsBaseGame,
                 Replaces = replaced.TryGetValue(id, out var r) ? r : [],
                 Events = events.TryGetValue(id, out var e) ? e.ToList() : [],
@@ -175,6 +184,9 @@ public static class SoundIndex
             sounds.Add(sound);
         }
 
+        foreach (var (id, (source, file)) in winners) Add(id, source, file, null);
+        foreach (var (id, (source, file, bankName)) in embedded) Add(id, source, file, bankName);
+
         sounds.Sort((a, b) =>
         {
             var byGroup = string.Compare(a.Group, b.Group, StringComparison.OrdinalIgnoreCase);
@@ -183,8 +195,8 @@ public static class SoundIndex
 
         var missing = listed.Count(id => !winners.ContainsKey(id));
         Log.Information(
-            "Found {Count} sounds ({ModCount} from mods, {Unnamed} without a name) in {Sources} sources in {Seconds:0.0} seconds",
-            sounds.Count, sounds.Count(s => s.FromMod), unnamed, sourcesWithSounds, timer.Elapsed.TotalSeconds);
+            "Found {Count} sounds ({ModCount} from mods, {Embedded} inside banks, {Unnamed} without a name) in {Sources} sources in {Seconds:0.0} seconds",
+            sounds.Count, sounds.Count(s => s.FromMod), embedded.Count, unnamed, sourcesWithSounds, timer.Elapsed.TotalSeconds);
         if (missing > 0)
         {
             Log.Debug("{Count} streamed sounds named in banks have no .wem in any source", missing);
@@ -193,11 +205,59 @@ public static class SoundIndex
         return new SoundIndexResult
         {
             Sounds = sounds,
-            Files = winners.ToDictionary(pair => pair.Key, pair => pair.Value.File),
+            Files = winners.Select(pair => KeyValuePair.Create(pair.Key, pair.Value.File))
+                .Concat(embedded.Select(pair => KeyValuePair.Create(pair.Key, (IArchiveFile)pair.Value.File)))
+                .ToDictionary(),
             SourcesWithSounds = sourcesWithSounds,
             Unnamed = unnamed,
             NamedButMissing = missing,
         };
+    }
+
+    /// <summary>
+    /// Sounds stored inside the banks the game uses (the last copy of each .bnk), apart from three
+    /// kinds that aren't separate sounds: the opening of a sound that is also streamed as its own .wem
+    /// (Wwise "prefetch"; the full file is listed already), data for Wwise effects plugins such as
+    /// reverb impulse responses, and anything that isn't Wwise PCM or Vorbis.
+    /// </summary>
+    private static Dictionary<uint, (SoundSource Source, EmbeddedSoundFile File, string BankName)> ReadEmbeddedSounds(
+        IEnumerable<(SoundSource Source, IArchiveFile File)> bankFiles,
+        IReadOnlyDictionary<uint, (SoundSource Source, IArchiveFile File)> streamed,
+        IReadOnlySet<uint> pluginData)
+    {
+        var result = new Dictionary<uint, (SoundSource, EmbeddedSoundFile, string)>();
+        foreach (var (source, file) in bankFiles)
+        {
+            var bankName = Path.GetFileName(NormalizePath(file.Path));
+            int prefetch = 0, plugin = 0, other = 0, added = 0;
+            try
+            {
+                var bytes = file.GetBytes();
+                foreach (var entry in BnkMedia.Read(bytes))
+                {
+                    if (streamed.ContainsKey(entry.Id)) { prefetch++; continue; }
+                    if (pluginData.Contains(entry.Id)) { plugin++; continue; }
+                    var tag = WemFormat.ReadFormatTag(bytes.AsSpan(entry.Offset, entry.Length));
+                    if (tag is not (WemFormat.WwisePcm or WemFormat.WwiseVorbis)) { other++; continue; }
+
+                    added++;
+                    result[entry.Id] = (source, new EmbeddedSoundFile(file, entry), bankName);
+                }
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException)
+            {
+                Log.Warning("Could not read bank {Bank} in {Source}; its embedded sounds are skipped ({Error})", bankName, source.Name, e.Message);
+                continue;
+            }
+
+            if (added + prefetch + plugin + other > 0)
+            {
+                Log.Debug("{Source} {Bank}: {Added} embedded sounds; skipped {Prefetch} prefetch copies, {Plugin} plugin data, {Other} other",
+                    source.Name, bankName, added, prefetch, plugin, other);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>Every archive the game loads, in order, then the loose Data/Sound/Soundbanks files.</summary>
@@ -245,14 +305,15 @@ public static class SoundIndex
             .ToList();
     }
 
-    /// <summary>A .wem or .json directly in sound/soundbanks (the folder Wwise loads by ID).</summary>
+    /// <summary>A .wem, .bnk or .json directly in sound/soundbanks (the folder Wwise loads by ID).</summary>
     public static bool IsSoundbankFile(string path)
     {
         var p = NormalizePath(path);
         if (!p.StartsWith(SoundbanksFolder, StringComparison.OrdinalIgnoreCase)) return false;
         var rest = p[SoundbanksFolder.Length..];
         return !rest.Contains('/') &&
-               (rest.EndsWith(".wem", StringComparison.OrdinalIgnoreCase) || rest.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+               (rest.EndsWith(".wem", StringComparison.OrdinalIgnoreCase) || rest.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
+                rest.EndsWith(".bnk", StringComparison.OrdinalIgnoreCase));
     }
 
     public static bool IsBaseGameArchive(string archiveName) =>

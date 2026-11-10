@@ -295,7 +295,7 @@ public class SoundIndexTests
     [Theory]
     [InlineData("sound/soundbanks/123.wem", true)]
     [InlineData("Sound\\Soundbanks\\123.json", true)]
-    [InlineData("sound/soundbanks/123.bnk", false)]
+    [InlineData("sound/soundbanks/123.bnk", true)]
     [InlineData("sound/soundbanks/sub/123.wem", false)]
     [InlineData("sound/voice/starfield.esm/npcfsarah/1.wem", false)]
     public void OnlyFilesDirectlyInSoundbanksCount(string path, bool expected) =>
