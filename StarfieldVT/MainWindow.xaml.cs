@@ -184,7 +184,8 @@ namespace StarfieldVT
             if (e.NewValue is VoiceType selectedVoiceType)
             {
                 _mainWindowModel.VoiceLineTableViewModel?.ShowVoiceLines(
-                    selectedVoiceType.VoiceLines, selectedVoiceType.FromMaster, selectedVoiceType.EditorId);
+                    selectedVoiceType.VoiceLines, selectedVoiceType.FromMaster, selectedVoiceType.EditorId,
+                    _mainWindowModel.SearchBarText);
             }
         }
 
@@ -248,7 +249,8 @@ namespace StarfieldVT
             if (masterSelectedArgs.NewValue is Master master)
             {
                 _mainWindowModel.VoiceLineTableViewModel?.ShowVoiceLines(
-                    master.VoiceTypes.SelectMany(vt => vt.VoiceLines), master.Filename, null);
+                    master.VoiceTypes.SelectMany(vt => vt.VoiceLines), master.Filename, null,
+                    _mainWindowModel.SearchBarText);
             }
         }
 

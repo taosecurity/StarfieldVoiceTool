@@ -15,6 +15,9 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
     // every line in the current selection, shown when there's no filter text
     private List<VoiceLine> _selectionVoiceLines = [];
 
+    // the dialogue search only finds lines among those shown (plugin AND voice type filter AND text)
+    private SearchScope _scope = SearchScope.Everything;
+
     private VoiceLine? _selectedVoiceLine;
     public VoiceLine? SelectedVoiceLine
     {
@@ -67,10 +70,16 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
         set => SetField(ref _statusText, value);
     }
 
-    /// <summary>Show the lines of a plugin or voice type, applying the current filter once.</summary>
-    public void ShowVoiceLines(IEnumerable<VoiceLine> voiceLines, string? master, string? voiceType)
+    /// <summary>
+    /// Show the lines of a plugin or voice type, applying the current filter once. Pass the voice type
+    /// filter box's text when the tree is filtered: the lines are then already narrowed to it, and the
+    /// status line says so.
+    /// </summary>
+    public void ShowVoiceLines(IEnumerable<VoiceLine> voiceLines, string? master, string? voiceType,
+        string? voiceTypeFilter = null)
     {
-        SetSelection(voiceLines, master, voiceType, voiceTypeFilter: null);
+        SetSelection(voiceLines, master, voiceType,
+            string.IsNullOrWhiteSpace(voiceTypeFilter) ? null : voiceTypeFilter);
     }
 
     /// <summary>Show the lines of every voice type whose name contains <paramref name="voiceTypeFilter"/>.</summary>
@@ -84,6 +93,10 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
     private void SetSelection(IEnumerable<VoiceLine> voiceLines, string? master, string? voiceType, string? voiceTypeFilter)
     {
         _selectionVoiceLines = voiceLines.ToList();
+        // an empty table with nothing chosen searches every plugin; anything chosen limits the search to it
+        _scope = master == null && voiceType == null && voiceTypeFilter == null
+            ? SearchScope.Everything
+            : SearchScope.Of(_selectionVoiceLines);
         SelectedMaster = master;
         SelectedVoiceType = voiceType;
         VoiceTypeFilter = voiceTypeFilter;
@@ -101,30 +114,21 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
         {
             // replacing the collection is far cheaper than clearing and re-adding thousands of rows
             VoiceLines = new ObservableCollection<VoiceLine>(_selectionVoiceLines);
-            StatusText = VoiceTypeFilter == null
-                ? $"{VoiceLines.Count:N0} lines"
-                : $"{VoiceLines.Count:N0} lines from voice types matching \"{VoiceTypeFilter}\"";
+            StatusText = $"{VoiceLines.Count:N0} lines{Where()}";
             return;
         }
 
         try
         {
-            IEnumerable<VoiceLine> filteredVoiceLines =
-                _luceneManager.FreeTextSearch(VoiceLineFilterText, SelectedMaster, SelectedVoiceType);
-            if (VoiceTypeFilter != null)
-            {
-                // same case-insensitive "contains" rule the voice type tree uses
-                filteredVoiceLines = filteredVoiceLines.Where(line =>
-                    line.VoiceType.Contains(VoiceTypeFilter, StringComparison.InvariantCultureIgnoreCase));
-            }
+            var filteredVoiceLines = _scope.Restrict(
+                _luceneManager.FreeTextSearch(VoiceLineFilterText, SelectedMaster, SelectedVoiceType));
 
             VoiceLines = new ObservableCollection<VoiceLine>(filteredVoiceLines);
-            Log.Debug("Filter with {FilterText} found {Count} result(s)", VoiceLineFilterText, VoiceLines.Count);
-            StatusText = VoiceTypeFilter != null
-                ? $"{VoiceLines.Count:N0} matches in voice types matching \"{VoiceTypeFilter}\""
-                : SelectedMaster == null
-                    ? $"{VoiceLines.Count:N0} matches in all plugins"
-                    : $"{VoiceLines.Count:N0} matches";
+            Log.Debug("Filter with {FilterText} found {Count} result(s) in master {Master}, voice type {VoiceType}, voice type filter {VoiceTypeFilter}",
+                VoiceLineFilterText, VoiceLines.Count, SelectedMaster, SelectedVoiceType, VoiceTypeFilter);
+            StatusText = _scope.IsEverything
+                ? $"{VoiceLines.Count:N0} matches in all plugins"
+                : $"{VoiceLines.Count:N0} matches{Where()}";
         }
         catch (Exception ex)
         {
@@ -132,6 +136,16 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
             VoiceLines = [];
             StatusText = $"Search failed: {ex.Message}";
         }
+    }
+
+    /// <summary>What the table is limited to, for the status line, e.g. " in X.esm, voice types matching "sarah"".</summary>
+    private string Where()
+    {
+        var parts = new List<string>();
+        if (SelectedVoiceType != null) parts.Add($"voice type {SelectedVoiceType}");
+        if (SelectedMaster != null) parts.Add(SelectedMaster);
+        if (VoiceTypeFilter != null && SelectedVoiceType == null) parts.Add($"voice types matching \"{VoiceTypeFilter}\"");
+        return parts.Count == 0 ? "" : " in " + string.Join(", ", parts);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

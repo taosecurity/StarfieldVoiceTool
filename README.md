@@ -67,6 +67,7 @@ The source code in this repository is licensed under the [MIT License](LICENSE).
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
 
 ## Changes in 0.8.1
+* Fixed: the dialogue filter under the table ignored the voice type filter on the left once a plugin was selected. For example, with `sarahmorgan` on the left, a plugin selected and `weapons` in the dialogue filter, every voice type's "weapons" lines in that plugin were shown. The dialogue filter now searches only the lines the table is showing, so all three narrow together: plugin, voice type filter and dialogue text. The status line says what the table is limited to.
 * New, original program icon: a speech bubble with a sound wave on a starry background. It replaces the face icon inherited from the original tool, whose source was unknown. The icon is drawn from scratch by [`art/make_icon.py`](art/make_icon.py) (no game art) and is covered by this repository's MIT license.
 * The window shows the icon on Linux too (before, only the Windows `.exe` had one).
 * The plugin list on the left can be resized: drag the divider between it and the table. The tool remembers the width.
