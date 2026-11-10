@@ -119,27 +119,52 @@ namespace StarfieldVT.Core
         }
 
         /// <summary>
-        /// The game environment for the data folder. On Windows without a Plugins.txt, the plugins in the
-        /// Data folder are added after the game's built-in ones, as the Linux Plugins.txt fallback does.
+        /// The game environment for the data folder. Plugins in the load order that aren't in this Data
+        /// folder (or whose masters aren't) are dropped, since Mutagen can't read any plugin otherwise. On
+        /// Windows without a Plugins.txt, the plugins in the Data folder are added after the game's built-in
+        /// ones, as the Linux Plugins.txt fallback does.
         /// </summary>
         private static IGameEnvironment<IStarfieldMod, IStarfieldModGetter> BuildEnvironment(string dataFolderPath)
         {
-            var env = GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
-                .WithTargetDataFolder(dataFolderPath)
-                .Build();
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || File.Exists(GameFingerprint.PluginsTxtPath))
-                return env;
+            // read the load order without loading any plugin: Mutagen's Build() fails on every plugin
+            // when the order lists plugins that aren't in this Data folder
+            var noPluginsTxt = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && !File.Exists(GameFingerprint.PluginsTxtPath);
+            var enabled = LoadOrder.GetLoadOrderListings(GameRelease.Starfield, dataFolderPath, throwOnMissingMods: false)
+                .Where(listing => listing.Enabled)
+                .Select(listing => listing.ModKey.FileName.String)
+                .ToList();
+            var allOnDisk = enabled.All(name => File.Exists(Path.Combine(dataFolderPath, name)));
+            Log.Information("Load order has {Count} enabled plugins{Missing}", enabled.Count,
+                allOnDisk ? "" : ", some of them not in this Data folder");
+            if (allOnDisk && !noPluginsTxt)
+            {
+                return GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
+                    .WithTargetDataFolder(dataFolderPath)
+                    .Build();
+            }
 
-            var listed = env.LoadOrder.ListedOrder.Select(listing => listing.ModKey).ToList();
-            var unlisted = LoadOrderFallback.FindUnlistedPlugins(dataFolderPath, listed.Select(key => key.FileName.String));
-            if (unlisted.Count == 0) return env;
+            var onDisk = LoadOrderFallback.ReadDataFolderPlugins(dataFolderPath);
+            var kept = LoadOrderFallback.KeepLoadable(enabled, onDisk, out var notOnDisk, out var missingMasters);
+            if (notOnDisk.Count > 0)
+            {
+                Log.Warning("{Count} plugins in the load order are not in {DataFolder} and are skipped " +
+                            "(Plugins.txt is shared by every Starfield install on this PC): {Plugins}",
+                    notOnDisk.Count, dataFolderPath, notOnDisk);
+            }
+            foreach (var (plugin, master) in missingMasters)
+            {
+                Log.Warning("Skipping {Plugin}: master {Master} is not in the Data folder or loads after it", plugin, master);
+            }
 
-            Log.Information("No Plugins.txt at {Path}; also reading {Plugins} from the Data folder",
-                GameFingerprint.PluginsTxtPath, unlisted);
-            env.Dispose();
+            var unlisted = noPluginsTxt ? LoadOrderFallback.FindUnlistedPlugins(onDisk, kept) : [];
+            if (unlisted.Count > 0)
+            {
+                Log.Information("No Plugins.txt at {Path}; also reading {Plugins} from the Data folder",
+                    GameFingerprint.PluginsTxtPath, unlisted);
+            }
             return GameEnvironment.Typical.Builder<IStarfieldMod, IStarfieldModGetter>(GameRelease.Starfield)
                 .WithTargetDataFolder(dataFolderPath)
-                .WithLoadOrder(listed.Concat(unlisted.Select(name => ModKey.FromFileName(name))).ToArray())
+                .WithLoadOrder(kept.Concat(unlisted).Select(name => ModKey.FromFileName(name)).ToArray())
                 .Build();
         }
 

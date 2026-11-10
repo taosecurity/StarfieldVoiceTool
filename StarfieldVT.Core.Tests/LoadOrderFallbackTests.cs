@@ -25,6 +25,27 @@ public class LoadOrderFallbackTests
     }
 
     [Fact]
+    public void KeepLoadable_DropsPluginsNotOnDiskAndTheirDependents()
+    {
+        // a Plugins.txt from another install: most plugins aren't in this Data folder
+        var enabled = new[] { "Starfield.esm", "sfta01.esm", "AstridCrew.esm", "AstridCrew - Romance.esm", "Patch.esm" };
+        var onDisk = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Starfield.esm"] = [],
+            ["astridcrew.esm"] = ["Starfield.esm"],
+            ["AstridCrew - Romance.esm"] = ["Starfield.esm", "AstridCrew.esm"],
+            ["Patch.esm"] = ["Starfield.esm", "sfta01.esm"],
+            ["NotListed.esm"] = ["Starfield.esm"],
+        };
+
+        var kept = LoadOrderFallback.KeepLoadable(enabled, onDisk, out var notOnDisk, out var missingMasters);
+
+        Assert.Equal(["Starfield.esm", "AstridCrew.esm", "AstridCrew - Romance.esm"], kept);
+        Assert.Equal(["sfta01.esm"], notOnDisk);
+        Assert.Equal([("Patch.esm", "sfta01.esm")], missingMasters);
+    }
+
+    [Fact]
     public void ReadMasters_ReadsMastSubrecords()
     {
         using var dir = new TempDir();

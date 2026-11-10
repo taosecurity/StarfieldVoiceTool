@@ -16,9 +16,25 @@ public static class LoadOrderFallback
     /// The plugins in <paramref name="dataFolderPath"/> that aren't in <paramref name="listed"/>, ordered so
     /// each comes after its masters. Plugins with a master that is missing are left out and logged.
     /// </summary>
-    public static List<string> FindUnlistedPlugins(string dataFolderPath, IEnumerable<string> listed)
+    public static List<string> FindUnlistedPlugins(string dataFolderPath, IEnumerable<string> listed) =>
+        FindUnlistedPlugins(ReadDataFolderPlugins(dataFolderPath), listed);
+
+    public static List<string> FindUnlistedPlugins(IReadOnlyDictionary<string, IReadOnlyList<string>> onDisk,
+        IEnumerable<string> listed)
     {
-        var candidates = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        var ordered = OrderAfterMasters(listed.ToList(), onDisk, out var missingMasters);
+        foreach (var (plugin, missing) in missingMasters)
+        {
+            Log.Warning("Skipping {Plugin}: master {Master} is not in the Data folder", plugin, missing);
+        }
+
+        return ordered;
+    }
+
+    /// <summary>Every plugin in the Data folder with its masters. Unreadable plugins are logged and left out.</summary>
+    public static Dictionary<string, IReadOnlyList<string>> ReadDataFolderPlugins(string dataFolderPath)
+    {
+        var plugins = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(dataFolderPath))
         {
             var name = Path.GetFileName(file);
@@ -26,7 +42,7 @@ public static class LoadOrderFallback
 
             try
             {
-                candidates[name] = ReadMasters(file);
+                plugins[name] = ReadMasters(file);
             }
             catch (Exception ex)
             {
@@ -34,13 +50,43 @@ public static class LoadOrderFallback
             }
         }
 
-        var ordered = OrderAfterMasters(listed.ToList(), candidates, out var missingMasters);
-        foreach (var (plugin, missing) in missingMasters)
+        return plugins;
+    }
+
+    /// <summary>
+    /// Plugins.txt is shared by every Starfield install on the PC, so it can list plugins that aren't in
+    /// this Data folder (another install, or a mod manager staging folder). Mutagen can't read any plugin
+    /// then, so keep only the enabled plugins that are on disk, in load order, and whose masters are all
+    /// kept before them. The ones left out are returned with the reason.
+    /// </summary>
+    public static List<string> KeepLoadable(IReadOnlyList<string> enabledInOrder,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> onDisk,
+        out List<string> notOnDisk, out List<(string Plugin, string Master)> missingMasters)
+    {
+        var kept = new List<string>();
+        var keptSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        notOnDisk = new List<string>();
+        missingMasters = new List<(string, string)>();
+        foreach (var name in enabledInOrder)
         {
-            Log.Warning("Skipping {Plugin}: master {Master} is not in the Data folder", plugin, missing);
+            if (!onDisk.TryGetValue(name, out var masters))
+            {
+                notOnDisk.Add(name);
+                continue;
+            }
+
+            var missing = masters.FirstOrDefault(master => !keptSet.Contains(master));
+            if (missing != null)
+            {
+                missingMasters.Add((name, missing));
+                continue;
+            }
+
+            kept.Add(name);
+            keptSet.Add(name);
         }
 
-        return ordered;
+        return kept;
     }
 
     /// <summary>
