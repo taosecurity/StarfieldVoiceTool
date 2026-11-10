@@ -4,14 +4,16 @@ Steps for an AI assistant helping someone use or build this tool. Every command 
 
 ## 1. What it is for
 
-Starfield Voice Tool is a desktop app (Windows and Linux, x64) that lists every voiced dialogue line in Starfield and in the player's installed mods, grouped by plugin and voice type. The user can search the dialogue text, play a line, and export it as a `.wav`.
+Starfield Voice Tool is a desktop app (Windows and Linux, x64) that lists every voiced dialogue line in Starfield and in the player's installed mods, grouped by plugin and voice type. The user can search the dialogue text, play a line, and export it as a `.wav`. A second tab, **Sound Effects**, lists every Wwise sound (sound effects, ambience, music) from the game and from mods, by name, Wwise ID, folder and event; each can be played, exported as a `.wav`, or have its ID or event names copied.
 
 Use it when someone wants to:
 - find or listen to a character's or voice type's lines;
 - check which lines a mod adds and whether its voice files are found;
-- get a voice line as a `.wav` file.
+- get a voice line as a `.wav` file;
+- find a sound effect's Wwise ID or event name (for example to replace it in a mod), hear it, or save it as a `.wav`;
+- see which sounds a mod adds or replaces.
 
-Don't use it to edit plugins, change voice files, or play the game: it only reads.
+Don't use it to edit plugins, change voice or sound files, or play the game: it only reads.
 
 ## 2. Prerequisites
 
@@ -49,7 +51,7 @@ Source:
 ```
 dotnet test StarfieldVT.Core.Tests -c Release
 ```
-All tests pass. To also check voice file conversion on real files, set `STARFIELDVT_TEST_WEM_DIR` to a folder of `.wem` files first (game or mod voice files; never commit them).
+All tests pass. To also check conversion on real files, set `STARFIELDVT_TEST_WEM_DIR` to a folder of `.wem` files first (game or mod voice or sound files, Vorbis or PCM; never commit them). To also list the sounds of a real install, set `STARFIELDVT_TEST_DATA_DIR` to its `Data` folder (read only); the test writes a summary to `%TEMP%\svt-real-index.txt`.
 
 ## 5. Common tasks
 
@@ -66,6 +68,9 @@ All tests pass. To also check voice file conversion on real files, set `STARFIEL
 | Resize the plugin list or fit a column | Drag the divider between the list and the table (the width is remembered in `settings.json`); double-click the right edge of a column header to fit it |
 | Find one line | Select a plugin or voice type on the left, then type in the filter box under the lines (Lucene syntax: `"exact phrase"`, `capt*`, `ship AND crew`) |
 | Export a line | Select it, press **Export**, choose where to save the `.wav` |
+| Find a sound effect | **Sound Effects** tab (listed the first time it is opened, a few seconds); pick a group on the left (`WPN`, `MUS`, ... or **Mod: <archive>**), type in the search box: words match name, folder, bank or event; a number matches a whole Wwise ID |
+| Play or export sound effects | Double-click or ▶ plays; **Export** saves one `.wav`, or with several selected asks for a folder and writes `<Name>_<ID>.wav` each (existing files are kept) |
+| Get a sound's Wwise ID or events | Select the sounds, press **Copy ID** or **Copy Events** (one per line on the clipboard) |
 
 Playing, exporting and choosing options are done in the window; there is no command-line mode for them.
 
@@ -73,6 +78,7 @@ Playing, exporting and choosing options are done in the window; there is no comm
 
 Inputs (read only):
 - the game's `Data` folder: plugins (`.esm`, `.esp`, `.esl`), `.ba2` archives, and loose files under `Data\Sound\Voice`;
+- for the Sound Effects tab: the `.wem` and bank `.json` files directly in `sound\soundbanks` of every archive (in load order) and of `Data\Sound\Soundbanks`; the later source wins for the same ID;
 - the load order in `%LOCALAPPDATA%\Starfield\Plugins.txt`. Without one, every plugin in `Data` is read, each after its masters. Plugins listed there but not in the chosen `Data` folder are skipped and listed in the log.
 
 Outputs:
@@ -85,14 +91,14 @@ Command-line options:
 
 | Option | Effect |
 |---|---|
-| `--verbose`, `-v` | Debug-level log: every quest and dialogue topic parsed, every search, each voice conversion step |
+| `--verbose`, `-v` | Debug-level log: every quest and dialogue topic parsed, every search, each voice or sound conversion step (with its codec), each archive's sound count |
 | `--log <file>`, `--log=<file>` | Write the log to `<file>` instead of the daily file |
 
 Unknown options are ignored and noted in the log.
 
 Exit codes: 0 when the window is closed normally. An unexpected error closes the tool (the exit code is then the .NET runtime's crash code, not a tool-specific one) and is written to the log as `[FTL] Unhandled error`.
 
-Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.local/share/StarfieldVT/logs/`), one file per day, last 5 kept, or the `--log` file. Useful searches: `[ERR]`, `[WRN]`, `skipped`, `Skipping`, `ww2ogg:`.
+Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.local/share/StarfieldVT/logs/`), one file per day, last 5 kept, or the `--log` file. Useful searches: `[ERR]`, `[WRN]`, `skipped`, `Skipping`, `ww2ogg:`; for sound effects, `Found` (the line `Found N sounds (M from mods, K without a name) in S sources`), `Could not read archive`, `Playing sound`, `Exporting sound`, `couldn't be converted`.
 
 ## 7. Limits
 
@@ -101,6 +107,7 @@ Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.loc
 - English voice files only; archives localized to other languages are skipped.
 - Only enabled plugins in the load order (or, without `Plugins.txt`, every plugin in `Data`) are listed. Plugins whose masters are missing are skipped.
 - Lines without a voice file (the player's lines, unvoiced text) are not listed.
+- Sound effects: only streamed `.wem` files in `sound\soundbanks` are listed. Sounds embedded inside `.bnk` bank files (a few hundred short ones) are not, yet. Wwise PCM and Wwise Vorbis are converted; any other codec is refused with a message naming it. The sound list is not cached: it is read again each time the tool starts and the tab is opened.
 - The window is required: it doesn't run headless or from a script.
 - Exported audio is the game's or a mod's content: the user may only share it as that content's license allows.
 

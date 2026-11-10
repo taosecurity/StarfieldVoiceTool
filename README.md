@@ -1,11 +1,11 @@
 ﻿![Workflow](https://github.com/taosecurity/StarfieldVoiceTool/actions/workflows/dotnet-desktop.yml/badge.svg?branch=main)  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # Starfield Voice Tool
-Browse every voiced line in Starfield and in your installed mods, by plugin and voice type; search the dialogue text, listen to any line and save it as a `.wav`. Useful for finding a companion's lines, checking what a mod's voice files say, or getting audio clips for your own mod or video.
+Browse every voiced line in Starfield and in your installed mods, by plugin and voice type; search the dialogue text, listen to any line and save it as a `.wav`. Useful for finding a companion's lines, checking what a mod's voice files say, or getting audio clips for your own mod or video. The **Sound Effects** tab does the same for the game's and your mods' sound effects and music: about 35,000 sounds by name, ID and Wwise event.
 
 **First try:** download the zip for your system from [Releases](https://github.com/taosecurity/StarfieldVoiceTool/releases), extract it, and run `StarfieldVT.exe`. Steam installs are found automatically; otherwise point it at your game's `Data` folder. Once loading finishes, pick **Starfield.esm** on the left, type `captain` in the filter box under the lines, and double-click a line to hear it.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-081).
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes and a sound effects browser; see [Changes](#changes-in-090).
 
 **For AI assistants:** see [AGENTS.md](AGENTS.md) for install steps, options, log locations and limits.
 
@@ -29,6 +29,18 @@ This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldV
 6. Plugins are listed by file name, so a Creation may appear under a name that differs from its store title (Watchtower is `kinggathcreations_spaceship.esm`). Only plugins with voiced lines are listed.
 7. The filter box under the lines searches the dialogue text. It supports [Lucene syntax](https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) such as `"exact phrase"`, `capt*` and `ship AND crew`. With nothing selected, it searches every plugin.
 
+## Sound effects
+The **Sound Effects** tab lists every Wwise sound the game can load: the sound effects, ambience and music in `Starfield - WwiseSounds*.ba2`, and the sounds mods and Creations add in their own archives (Shattered Space, Watchtower and Trackers Alliance among them) or as loose files in `Data\Sound\Soundbanks`. The list is read the first time you open the tab, which takes a few seconds, and is kept until you close the tool.
+
+1. Pick a group on the left: the base game's sounds by their Wwise folder (`AMB` ambience, `FST` footsteps, `MUS` music, `NPC` creatures and people, `UI`, `VEH` ships and vehicles, `WPN` weapons, ...), or one mod's sounds (**Mod: …**).
+2. Type in the search box to narrow the list. Each word must match the sound's name, folder, bank or one of its events, or be its full ID: `lightsaber`, `80667371`, `MUS_AstralLounge`, `wind exteriors`.
+3. Double-click a sound (or press ▶) to hear it. **Export** saves the selected sound as a `.wav`; with several selected, it asks for a folder and names each file `<Name>_<ID>.wav`.
+4. **Copy ID** and **Copy Events** put the selected sounds' Wwise IDs or event names on the clipboard, for use in your own mod or in the Creation Kit.
+
+The columns: **ID** is the Wwise ID (the sound's file is `sound\soundbanks\<ID>.wem`), **Events** are the Wwise events that can play it, **Bank** is the sound bank that lists it, **Source** is the archive it is read from, and **Replaces** names earlier archives that hold the same ID. When two archives hold the same sound, the one loaded later wins, as in the game: the base game's `WwiseSoundsPatch` archive replaces about 2,000 older sounds, and a mod can replace any sound the same way.
+
+The names and events come from the JSON files Wwise writes next to each sound bank, which the game and most mods ship. A sound that no bank names is listed by its ID in the **Other** group.
+
 ## Linux
 Extract the Linux zip and run `./StarfieldVT`. Playback uses the system's VLC library, and minimal installs may lack the X11 and font libraries the window needs. On Debian or Ubuntu:
 
@@ -50,12 +62,14 @@ For more detail, start the tool from a command prompt (or a shortcut) with these
 
 | Option | What it does |
 |---|---|
-| `--verbose` (or `-v`) | Also logs every quest and dialogue topic parsed, every search, and each step of converting a voice file |
+| `--verbose` (or `-v`) | Also logs every quest and dialogue topic parsed, every search, each step of converting a voice file or sound, and how many sounds each archive holds |
 | `--log <file>` | Writes the log to `<file>` instead of the daily file, e.g. `--log C:\temp\starfieldvt.log` |
 
 For example, in a command prompt or PowerShell window opened in the tool's folder: `.\StarfieldVT.exe --verbose --log C:\temp\starfieldvt.log` (Linux: `./StarfieldVT --verbose --log /tmp/starfieldvt.log`). Attach that file when you report a problem.
 
 If a plugin's lines are missing, search the log for `skipped` or `Skipping`. `Plugins.txt` is shared by every Starfield install on the PC, so with more than one install (or a mod manager pointed at another folder) it can list plugins that aren't in the `Data` folder you chose. The tool skips those, and the log lists them.
+
+If the Sound Effects tab shows fewer sounds than expected, search the log for `Found` (the line `Found N sounds (M from mods ...)`) and, with `--verbose`, for each archive's count; an archive that can't be read is logged with `Could not read archive`.
 
 If the voice lines look wrong or stale, use **File** → **Delete Cache**, or delete `%LOCALAPPDATA%\StarfieldVT\cache.json` and the `index` folder.
 
@@ -65,6 +79,12 @@ Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Changes in 0.9.0
+* New **Sound Effects** tab: browse, search, play and export the game's and your mods' sound effects and music (about 35,000 sounds on a Steam install with Shattered Space and a few Creations). See [Sound effects](#sound-effects). The idea comes from [starfield-wwizard](https://github.com/yak3d/starfield-wwizard) by yak3d, the original author of this tool; this version is written from scratch from the file formats (no code was taken from it) and adds mod sounds, export, events and Linux support.
+* Sounds stored as Wwise PCM (more than half of the sound effects) are now converted too. Voice lines are unchanged: they all use Wwise Vorbis, which goes through the same converter as before.
+* A sound in a format the tool can't convert now gives a message naming the format, instead of a general conversion error.
+* Because the version changed, the voice line cache rebuilds once on first start.
 
 ## Changes in 0.8.1
 * Fixed: the dialogue filter under the table ignored the voice type filter on the left once a plugin was selected. For example, with `sarahmorgan` on the left, a plugin selected and `weapons` in the dialogue filter, every voice type's "weapons" lines in that plugin were shown. The dialogue filter now searches only the lines the table is showing, so all three narrow together: plugin, voice type filter and dialogue text. The status line says what the table is limited to.

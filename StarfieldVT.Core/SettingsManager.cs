@@ -24,6 +24,9 @@ public class AppSettings
     /// <summary>Width in pixels of the plugin list on the left, as the user last left it; null = default.</summary>
     public double? PluginListWidth { get; set; }
 
+    /// <summary>Width in pixels of the group list on the Sound Effects tab; null = default.</summary>
+    public double? SoundGroupListWidth { get; set; }
+
     /// <summary>Settings format version; files from before 0.8.0 have none (0).</summary>
     public int SettingsVersion { get; set; }
 
@@ -94,6 +97,16 @@ public class SettingsManager
         set
         {
             _settings.PluginListWidth = value;
+            Save();
+        }
+    }
+
+    public double? SoundGroupListWidth
+    {
+        get => _settings.SoundGroupListWidth;
+        set
+        {
+            _settings.SoundGroupListWidth = value;
             Save();
         }
     }

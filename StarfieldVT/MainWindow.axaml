@@ -6,25 +6,18 @@
         x:Name="MainWindowElement"
         Title="Starfield Voice Tool" Height="433" Width="1200"
         Icon="/starfieldvt.ico">
-    <Grid Name="MainGrid">
-        <!-- plugin tree | draggable divider | voice line table; the tree's width is remembered -->
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="160" />
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="2*" MinWidth="300" />
-        </Grid.ColumnDefinitions>
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Menu Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="0">
+        <Menu Grid.Row="0">
             <MenuItem Header="_File">
                 <MenuItem Header="Set Game Path" Click="SetGamePath_Click" />
-                <MenuItem Header="Delete Cache" Click="DeleteCache_Click" />
+                <MenuItem Header="Delete Cache" Click="DeleteCache_Click"
+                          ToolTip.Tip="Rebuilds the voice line list, and lists the sound effects again" />
                 <MenuItem Header="Exit" Click="MenuItem_OnClick" />
             </MenuItem>
             <MenuItem Header="_Options">
@@ -43,37 +36,57 @@
             </MenuItem>
         </Menu>
 
-        <starfieldVtUi:VoiceTypeTree Grid.Row="2" Grid.Column="0" Name="VoiceTypeTree"
-                                      VoiceTypeSelected="VoiceTypeTree_OnVoiceTypeSelected"
-                                      MasterSelected="VoiceTypeTree_OnMasterSelected"
-                                      SearchText="{Binding Path=SearchBarText}"
-                                      ProgressChanged="VoiceTypeTree_OnProgressChanged" />
+        <TabControl Grid.Row="1" Name="MainTabs" Padding="0" SelectionChanged="MainTabs_OnSelectionChanged">
+            <TabItem Header="Voice Lines" Name="VoiceLinesTab">
+                <Grid Name="MainGrid">
+                    <!-- plugin tree | draggable divider | voice line table; the tree's width is remembered -->
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MinWidth="160" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="2*" MinWidth="300" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-        <Grid Grid.Row="3" Grid.Column="0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" Text="&#x1F50D;" Margin="10" VerticalAlignment="Center" FontSize="20" />
-            <TextBox Grid.Column="1" Margin="5,10,10,10"
-                     VerticalContentAlignment="Center"
-                     Watermark="Filter voice types, e.g. sarah"
-                     ToolTip.Tip="Shows voice types whose name contains this text, in the tree and the table"
-                     Text="{Binding Path=SearchBarText, Mode=TwoWay}" />
-            <Button Grid.Column="2" Content="&#x23F9;" Height="30" Width="30" Click="StopButton_OnClick"
-                    VerticalAlignment="Center"
-                    ToolTip.Tip="Stop playback" />
-        </Grid>
+                    <starfieldVtUi:VoiceTypeTree Grid.Row="0" Grid.Column="0" Name="VoiceTypeTree"
+                                                  VoiceTypeSelected="VoiceTypeTree_OnVoiceTypeSelected"
+                                                  MasterSelected="VoiceTypeTree_OnMasterSelected"
+                                                  SearchText="{Binding Path=SearchBarText}"
+                                                  ProgressChanged="VoiceTypeTree_OnProgressChanged" />
 
-        <GridSplitter Grid.Row="2" Grid.Column="1" Grid.RowSpan="2" Width="6"
-                      ResizeDirection="Columns" Background="#30808080"
-                      ToolTip.Tip="Drag to resize the plugin list" />
+                    <Grid Grid.Row="1" Grid.Column="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="&#x1F50D;" Margin="10" VerticalAlignment="Center" FontSize="20" />
+                        <TextBox Grid.Column="1" Margin="5,10,10,10"
+                                 VerticalContentAlignment="Center"
+                                 Watermark="Filter voice types, e.g. sarah"
+                                 ToolTip.Tip="Shows voice types whose name contains this text, in the tree and the table"
+                                 Text="{Binding Path=SearchBarText, Mode=TwoWay}" />
+                        <Button Grid.Column="2" Content="&#x23F9;" Height="30" Width="30" Click="StopButton_OnClick"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Stop playback" />
+                    </Grid>
 
-        <starfieldVtUi:VoiceLineTable DataContext="{Binding VoiceLineTableViewModel}"
-                                       Grid.Row="2" Grid.Column="2" Grid.RowSpan="2" />
+                    <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="6"
+                                  ResizeDirection="Columns" Background="#30808080"
+                                  ToolTip.Tip="Drag to resize the plugin list" />
 
-        <StackPanel Grid.Row="4" Grid.ColumnSpan="3" Grid.Column="0" Orientation="Horizontal" Margin="5">
+                    <starfieldVtUi:VoiceLineTable DataContext="{Binding VoiceLineTableViewModel}"
+                                                   Grid.Row="0" Grid.Column="2" Grid.RowSpan="2" />
+                </Grid>
+            </TabItem>
+            <TabItem Header="Sound Effects" Name="SoundEffectsTab">
+                <starfieldVtUi:SoundEffectsView Name="SoundEffectsView" />
+            </TabItem>
+        </TabControl>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="5">
             <ProgressBar Name="TreeBuilderProgressBar" Height="15" Width="120" IsVisible="False" />
             <TextBlock Name="ProgressText" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>

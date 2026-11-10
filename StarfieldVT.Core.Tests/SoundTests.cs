@@ -358,3 +358,58 @@ public class SoundIndexTests
         }
     }
 }
+
+public class SoundCatalogTests
+{
+    private static SoundEffect Sound(uint id, string name, string group, bool fromMod = false, string source = "Starfield - WwiseSounds01.ba2",
+        string folder = "", string? bank = null, params string[] events) => new()
+    {
+        Id = id, Name = name, Group = group, FromMod = fromMod, Source = source, Folder = folder, Bank = bank, Events = [.. events],
+    };
+
+    private static readonly List<SoundEffect> Sounds =
+    [
+        Sound(1, "AMB_Wind_01", "AMB", folder: "Exteriors\\Wind"),
+        Sound(2, "WPN_Gun_Fire_02", "WPN", bank: "Starfield_WPN", events: ["WPN_Fire", "WPN_Fire_Alt"]),
+        Sound(3, "WPN_Lightsaber_Swing", "WPN", fromMod: true, source: "Sabers - Main.ba2"),
+        Sound(4, "SFBGS001_Vortex", "Creations", fromMod: true, source: "ShatteredSpace - Main01.ba2"),
+        Sound(80667371, "MUS_AstralLounge_A", "MUS", events: ["MUS_AstralLounge"]),
+    ];
+
+    [Fact]
+    public void GroupsAreAllThenGameGroupsThenMods()
+    {
+        var groups = SoundCatalog.Groups(Sounds);
+
+        Assert.Equal(["All sounds", "AMB (1)", "MUS (1)", "WPN (1)", "Mod: Sabers - Main.ba2 (1)", "Mod: ShatteredSpace - Main01.ba2 (1)"],
+            groups.Select(g => g.Label));
+        Assert.Equal(5, groups[0].Count);
+        // a mod's sound in a vanilla folder is listed under its mod, not under the game's group
+        Assert.Equal([2u], Sounds.Where(groups[3].Contains).Select(s => s.Id));
+        Assert.Equal([3u], Sounds.Where(groups[4].Contains).Select(s => s.Id));
+        Assert.All(Sounds, s => Assert.True(groups[0].Contains(s)));
+    }
+
+    [Theory]
+    [InlineData("", new uint[] { 1, 2, 3, 4, 80667371 })]
+    [InlineData("lightsaber", new uint[] { 3 })]
+    [InlineData("80667371", new uint[] { 80667371 })]
+    [InlineData("astrallounge", new uint[] { 80667371 })]
+    [InlineData("wpn_fire_alt", new uint[] { 2 })]
+    [InlineData("wind exteriors", new uint[] { 1 })]
+    [InlineData("wind gun", new uint[] { })]
+    [InlineData("shatteredspace", new uint[] { 4 })]
+    [InlineData("starfield_wpn", new uint[] { 2 })]
+    [InlineData("8066", new uint[] { })] // part of an ID is not a match: IDs are matched whole
+    public void SearchMatchesEveryWord(string search, uint[] expected) =>
+        Assert.Equal(expected, Sounds.Where(s => SoundCatalog.Matches(s, SoundCatalog.Terms(search))).Select(s => s.Id));
+
+    [Fact]
+    public void ExportNamesAreSafe()
+    {
+        Assert.Equal("WPN_Gun_Fire_02_2.wav", SoundCatalog.ExportFileName(Sounds[1]));
+        Assert.Equal("a_b_c__5.wav", SoundCatalog.ExportFileName(Sound(5, "a:b/c?", "Other")));
+        Assert.Equal("6.wav", SoundCatalog.ExportFileName(Sound(6, "6", "Other")));
+        Assert.Equal("7.wav", SoundCatalog.ExportFileName(Sound(7, " .. ", "Other")));
+    }
+}

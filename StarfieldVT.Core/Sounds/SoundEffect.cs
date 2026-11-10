@@ -35,5 +35,11 @@ public sealed class SoundEffect
     /// <summary>Wwise events that can play this sound, e.g. "MUS_AstralLounge".</summary>
     public List<string> Events { get; set; } = [];
 
+    /// <summary>The events as one line for the table.</summary>
+    public string EventsText => string.Join(", ", Events);
+
+    /// <summary>For the table: what this sound replaces, e.g. "replaces Starfield - WwiseSounds01.ba2".</summary>
+    public string ReplacesText => Replaces.Count == 0 ? "" : "replaces " + string.Join(", ", Replaces);
+
     public override string ToString() => $"{Id} {Name} ({Source})";
 }

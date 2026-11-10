@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="StarfieldVT.UI.View.SoundEffectsView">
+    <Grid Name="SoundGrid">
+        <!-- group list | draggable divider | sound table -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="160" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="3*" MinWidth="300" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ListBox Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Name="GroupList"
+                 ItemsSource="{Binding Groups}"
+                 SelectedItem="{Binding SelectedGroup, Mode=TwoWay}"
+                 ToolTip.Tip="Base game sounds by their Wwise folder (AMB = ambience, WPN = weapons, MUS = music, ...), then each mod's sounds" />
+
+        <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="6"
+                      ResizeDirection="Columns" Background="#30808080"
+                      ToolTip.Tip="Drag to resize the group list" />
+
+        <DataGrid Grid.Row="0" Grid.Column="2" Name="SoundTable" IsReadOnly="True" AutoGenerateColumns="False"
+                  ItemsSource="{Binding VisibleSounds}"
+                  DoubleTapped="SoundTable_OnDoubleTapped"
+                  SelectionMode="Extended"
+                  CanUserResizeColumns="True">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="260" />
+                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="100" />
+                <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="70" />
+                <DataGridTextColumn Header="Folder" Binding="{Binding Folder}" Width="180" />
+                <DataGridTextColumn Header="Events" Binding="{Binding EventsText}" Width="220" />
+                <DataGridTextColumn Header="Bank" Binding="{Binding Bank}" Width="130" />
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="200" />
+                <DataGridTextColumn Header="Replaces" Binding="{Binding ReplacesText}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Grid Grid.Row="1" Grid.Column="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Margin="5" Text="Search" VerticalAlignment="Center" />
+            <TextBox Grid.Column="1" Margin="0,5" VerticalContentAlignment="Center"
+                     Watermark="Name, ID, folder or event, e.g. lightsaber, 80667371, MUS_AstralLounge"
+                     ToolTip.Tip="Shows sounds that match every word, within the group selected on the left"
+                     Text="{Binding SearchText, Mode=TwoWay}" />
+            <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Margin="10,5,0,5" Content="&#x25B6;" Width="30" Click="PlayBtn_OnClick" ToolTip.Tip="Play the selected sound" />
+                <Button Margin="5,5,0,5" Content="&#x23F9;" Width="30" Click="StopBtn_OnClick" ToolTip.Tip="Stop playback" />
+                <Button Margin="5,5,0,5" Content="Copy ID" Click="CopyIdBtn_OnClick"
+                        ToolTip.Tip="Copy the selected sounds' IDs (one per line) to the clipboard" />
+                <Button Margin="5,5,0,5" Content="Copy Events" Click="CopyEventsBtn_OnClick"
+                        ToolTip.Tip="Copy the event names that play the selected sounds to the clipboard" />
+                <Button Margin="5,5,10,5" Content="Export" Click="ExportBtn_OnClick"
+                        ToolTip.Tip="Save the selected sound as a .wav; with several selected, choose a folder" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="5,0,5,5"
+                   Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
+    </Grid>
+</UserControl>

@@ -68,7 +68,61 @@ namespace StarfieldVT
                 if (e.PropertyName == nameof(MainWindowModel.SearchBarText)) ShowVoiceTypeFilterInTable();
             };
             RestorePluginListWidth();
-            Closing += (_, _) => SavePluginListWidth();
+            if (SettingsManager.Instance.SoundGroupListWidth is { } soundWidth && soundWidth >= 160)
+            {
+                SoundEffectsView.RestoreGroupListWidth(soundWidth);
+            }
+
+            Closing += (_, _) =>
+            {
+                SavePluginListWidth();
+                SaveSoundGroupListWidth();
+            };
+        }
+
+        private void SaveSoundGroupListWidth()
+        {
+            var width = Math.Round(SoundEffectsView.GroupColumn.ActualWidth);
+            // ActualWidth is 0 when the tab was never shown; keep the saved width then
+            if (width >= 160 && width != SettingsManager.Instance.SoundGroupListWidth)
+            {
+                SettingsManager.Instance.SoundGroupListWidth = width;
+            }
+        }
+
+        /// <summary>The sound effects are listed the first time their tab is opened, not at startup.</summary>
+        private async void MainTabs_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+        {
+            // selection changes in the lists and tables inside the tabs bubble up to here too
+            if (!ReferenceEquals(e.Source, MainTabs)) return;
+            await LoadSoundsIfShown();
+        }
+
+        private async Task LoadSoundsIfShown()
+        {
+            if (!ReferenceEquals(MainTabs.SelectedItem, SoundEffectsTab)) return;
+            if (!SettingsManager.Instance.HasValidGamePath())
+            {
+                SoundEffectsView.ViewModel.StatusText = GamePathHint;
+                return;
+            }
+
+            try
+            {
+                await SoundEffectsView.ViewModel.EnsureLoadedAsync(StarfieldManager.GetGamePath());
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to list sound effects");
+                SoundEffectsView.ViewModel.StatusText = $"Failed to list sound effects: {ex.Message}";
+            }
+        }
+
+        /// <summary>After the game path changed or the cache was deleted: list the sounds again.</summary>
+        private async Task ReloadSounds()
+        {
+            SoundEffectsView.ViewModel.Reset();
+            await LoadSoundsIfShown();
         }
 
         /// <summary>Put the plugin list back at the width the user dragged it to last time.</summary>
@@ -230,7 +284,10 @@ namespace StarfieldVT
 
             try
             {
+                // both at once: the sounds take seconds, the voice lines can take a minute
+                var sounds = ReloadSounds();
                 await ReloadTree(bustCache: true);
+                await sounds;
             }
             catch (Exception ex)
             {
@@ -289,7 +346,9 @@ namespace StarfieldVT
                 // the cache fingerprint includes the data folder, so a new path rebuilds automatically
                 if (await PromptForGamePath())
                 {
+                    var sounds = ReloadSounds();
                     await ReloadTree(bustCache: false);
+                    await sounds;
                 }
             }
             catch (Exception ex)
