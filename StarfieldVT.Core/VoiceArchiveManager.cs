@@ -87,7 +87,7 @@ public class VoiceArchiveManager
             .ToList();
     }
 
-    private static string? FindChildFolder(string? parent, string name) =>
+    internal static string? FindChildFolder(string? parent, string name) =>
         parent == null || !Directory.Exists(parent)
             ? null
             : Directory.EnumerateDirectories(parent)

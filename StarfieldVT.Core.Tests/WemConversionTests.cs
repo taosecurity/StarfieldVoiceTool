@@ -1,5 +1,8 @@
 using BnkExtractor;
 
+using StarfieldVT.Core.Audio;
+using StarfieldVT.Core.Sounds;
+
 namespace StarfieldVT.Core.Tests;
 
 /// <summary>
@@ -38,9 +41,10 @@ public class WemConversionTests
     }
 
     /// <summary>
-    /// Real voice files can't ship with the repo (they're game or mod assets). Set
+    /// Real voice and sound files can't ship with the repo (they're game or mod assets). Set
     /// STARFIELDVT_TEST_WEM_DIR to a folder of .wem files to run this check; without it the test
-    /// passes without doing anything.
+    /// passes without doing anything. Vorbis files go through ww2ogg and NVorbis to a .wav; Wwise PCM
+    /// files (most sound effects) are rewritten to a .wav directly.
     /// </summary>
     [Fact]
     public void RealWemsConvertAndAreClosed()
@@ -57,6 +61,19 @@ public class WemConversionTests
                 var wem = Path.Combine(dir.FullName, Path.GetFileName(original));
                 File.Copy(original, wem);
                 var ogg = Path.ChangeExtension(wem, "ogg");
+                var wav = Path.ChangeExtension(wem, "wav");
+                var bytes = File.ReadAllBytes(wem);
+
+                if (WemFormat.ReadFormatTag(bytes) == WemFormat.WwisePcm)
+                {
+                    using (var output = File.Create(wav)) WwisePcm.ToWav(bytes, output);
+                    Assert.True(new FileInfo(wav).Length > 44, $"empty .wav for {original}");
+                    AssertClosed(wav);
+                    File.Delete(wem);
+                    File.Delete(wav);
+                    count++;
+                    continue;
+                }
 
                 Extractor.ConvertWem(wem);
 
@@ -65,8 +82,14 @@ public class WemConversionTests
                 AssertClosed(wem);
                 AssertClosed(ogg);
                 AssertClosed(CodebooksPath);
+
+                OggToWav.Convert(ogg, wav);
+                Assert.True(new FileInfo(wav).Length > 44, $"empty .wav for {original}");
+                AssertClosed(wav);
+
                 File.Delete(wem);
                 File.Delete(ogg);
+                File.Delete(wav);
                 count++;
             }
 

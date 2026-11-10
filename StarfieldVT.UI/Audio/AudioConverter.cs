@@ -6,6 +6,7 @@ using Serilog;
 
 using StarfieldVT.Core.Audio;
 using StarfieldVT.Core.Filesystem;
+using StarfieldVT.Core.Sounds;
 
 namespace StarfieldVT.UI.Audio;
 
@@ -18,6 +19,20 @@ public static class AudioConverter
     /// </summary>
     public static void ConvertWemToWav(byte[] wemBytes, string wavPath)
     {
+        var tag = WemFormat.ReadFormatTag(wemBytes);
+        Log.Debug("Converting {Codec} .wem ({Bytes} bytes) to {WavPath}", WemFormat.Describe(tag), wemBytes.Length, wavPath);
+        if (tag == WemFormat.WwisePcm)
+        {
+            ConvertPcm(wemBytes, wavPath);
+            return;
+        }
+
+        if (tag != WemFormat.WwiseVorbis)
+        {
+            throw new InvalidDataException(
+                $"This sound couldn't be converted: {WemFormat.Describe(tag)}. Please report it with the log (Help → Open Log Folder).");
+        }
+
         var tempDir = AppDataFolder.GetTempDir();
         Directory.CreateDirectory(tempDir);
         var tempWemPath = Path.Combine(tempDir, $"{Guid.NewGuid():N}.wem");
@@ -53,6 +68,29 @@ public static class AudioConverter
         {
             TryDelete(tempWemPath);
             TryDelete(tempOggPath);
+        }
+    }
+
+    /// <summary>Wwise PCM needs no decoding: rewrite the header and copy the samples.</summary>
+    private static void ConvertPcm(byte[] wemBytes, string wavPath)
+    {
+        try
+        {
+            var directoryName = Path.GetDirectoryName(Path.GetFullPath(wavPath));
+            if (directoryName != null) Directory.CreateDirectory(directoryName);
+
+            using (var output = File.Create(wavPath))
+            {
+                WwisePcm.ToWav(wemBytes, output);
+            }
+
+            Log.Information("Wrote PCM sound to wav file at {WavPath}", wavPath);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "There was an error converting the PCM wem file to {WavPath}", wavPath);
+            TryDelete(wavPath);
+            throw;
         }
     }
 
