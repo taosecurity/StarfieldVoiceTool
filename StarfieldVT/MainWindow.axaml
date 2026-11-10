@@ -4,7 +4,8 @@
         xmlns:starfieldVtUi="using:StarfieldVT.UI.View"
         x:Class="StarfieldVT.MainWindow"
         x:Name="MainWindowElement"
-        Title="Starfield Voice Tool" Height="433" Width="1200">
+        Title="Starfield Voice Tool" Height="433" Width="1200"
+        Icon="/starfieldvt.ico">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition />

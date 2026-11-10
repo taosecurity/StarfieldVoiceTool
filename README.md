@@ -5,7 +5,7 @@ Browse every voiced line in Starfield and in your installed mods, by plugin and 
 
 **First try:** download the zip for your system from [Releases](https://github.com/taosecurity/StarfieldVoiceTool/releases), extract it, and run `StarfieldVT.exe`. Steam installs are found automatically; otherwise point it at your game's `Data` folder. Once loading finishes, pick **Starfield.esm** on the left, type `captain` in the filter box under the lines, and double-click a line to hear it.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-080).
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes; see [Changes](#changes-in-081).
 
 **For AI assistants:** see [AGENTS.md](AGENTS.md) for install steps, options, log locations and limits.
 
@@ -63,6 +63,11 @@ Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
+
+## Changes in 0.8.1
+* New, original program icon: a speech bubble with a sound wave on a starry background. It replaces the face icon inherited from the original tool, whose source was unknown. The icon is drawn from scratch by [`art/make_icon.py`](art/make_icon.py) (no game art) and is covered by this repository's MIT license.
+* The window shows the icon on Linux too (before, only the Windows `.exe` had one).
+* Because the version changed, the voice line cache rebuilds once on first start.
 
 ## Changes in 0.8.0
 * Fixed: with a `Plugins.txt` that lists plugins missing from the chosen `Data` folder (a second Starfield install, or a mod manager's load order for another folder), loading failed with "Failed to load voice types" and no lines were shown. Those plugins, and any plugin whose masters are missing, are now skipped and listed in the log.

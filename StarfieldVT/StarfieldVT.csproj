@@ -31,6 +31,12 @@
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.92.0" />
   </ItemGroup>
 
+  <!-- The window icon (title bar and taskbar on Linux); Windows also takes it from ApplicationIcon.
+       Drawn by art/make_icon.py: original artwork, no game assets. -->
+  <ItemGroup>
+    <AvaloniaResource Include="starfieldvt.ico" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\StarfieldVT.UI\StarfieldVT.UI.csproj" />
     <ProjectReference Include="..\StarfieldVT.Core\StarfieldVT.Core.csproj" />
