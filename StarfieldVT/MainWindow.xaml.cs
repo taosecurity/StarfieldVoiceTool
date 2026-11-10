@@ -67,6 +67,29 @@ namespace StarfieldVT
             {
                 if (e.PropertyName == nameof(MainWindowModel.SearchBarText)) ShowVoiceTypeFilterInTable();
             };
+            RestorePluginListWidth();
+            Closing += (_, _) => SavePluginListWidth();
+        }
+
+        /// <summary>Put the plugin list back at the width the user dragged it to last time.</summary>
+        private void RestorePluginListWidth()
+        {
+            if (SettingsManager.Instance.PluginListWidth is { } width && width >= 160)
+            {
+                MainGrid.ColumnDefinitions[0].Width = new GridLength(width);
+                MainGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
+                Log.Debug("Plugin list width restored to {Width}", width);
+            }
+        }
+
+        private void SavePluginListWidth()
+        {
+            var width = Math.Round(MainGrid.ColumnDefinitions[0].ActualWidth);
+            if (width >= 160 && width != SettingsManager.Instance.PluginListWidth)
+            {
+                SettingsManager.Instance.PluginListWidth = width;
+                Log.Debug("Plugin list width saved: {Width}", width);
+            }
         }
 
         /// <summary>
@@ -271,6 +294,34 @@ namespace StarfieldVT
             {
                 Log.Error(ex, "Failed to change the game path");
                 ProgressText.Text = $"Failed to change the game path: {ex.Message}";
+            }
+        }
+
+        private void OpenLogFolder_Click(object sender, RoutedEventArgs e) => AboutWindow.OpenLogFolder(this);
+
+        private async void ReportProblem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!await Launcher.LaunchUriAsync(new Uri(AboutInfo.IssuesUrl)))
+                    ProgressText.Text = $"Couldn't open a browser. Report problems at {AboutInfo.IssuesUrl}";
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Opening the issues page failed");
+                ProgressText.Text = $"Couldn't open a browser. Report problems at {AboutInfo.IssuesUrl}";
+            }
+        }
+
+        private async void About_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                await new AboutWindow().ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to show the About window");
             }
         }
     }

@@ -61,6 +61,9 @@ All tests pass. To also check voice file conversion on real files, set `STARFIEL
 | Mod voices packed outside `- Voices` archives (e.g. `- Main.ba2`) or as loose files | Read by default. **Options** → **Include voices from all mod archives and loose files** turns that off (reads only `- Voices` archives, slightly faster) |
 | A plugin seems missing | Plugins are listed by file name (a Creation's file name can differ from its title: Watchtower is `kinggathcreations_spaceship.esm`), and only plugins with voiced lines are listed. Check the option above, then search the log for `skipped` |
 | Rebuild the voice line list | In the app: **File** → **Delete Cache**; or delete `cache.json` and `index\` (section 6) |
+| Find the log, or details for a bug report | In the app: **Help** → **Open Log Folder**; **Help** → **About Starfield Voice Tool** → **Copy details** (version, OS, Data folder, log location) |
+| Report a problem | In the app: **Help** → **Report a Problem…** (opens https://github.com/taosecurity/StarfieldVoiceTool/issues) |
+| Resize the plugin list or fit a column | Drag the divider between the list and the table (the width is remembered in `settings.json`); double-click the right edge of a column header to fit it |
 | Find one line | Select a plugin or voice type on the left, then type in the filter box under the lines (Lucene syntax: `"exact phrase"`, `capt*`, `ship AND crew`) |
 | Export a line | Select it, press **Export**, choose where to save the `.wav` |
 

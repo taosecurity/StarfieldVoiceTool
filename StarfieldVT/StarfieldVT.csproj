@@ -35,6 +35,7 @@
        Drawn by art/make_icon.py: original artwork, no game assets. -->
   <ItemGroup>
     <AvaloniaResource Include="starfieldvt.ico" />
+    <AvaloniaResource Include="..\art\starfieldvt-256.png" Link="Assets\starfieldvt-256.png" />
   </ItemGroup>
 
   <ItemGroup>

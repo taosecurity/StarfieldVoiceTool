@@ -21,6 +21,9 @@ public class AppSettings
     /// </summary>
     public bool IncludeAllModVoices { get; set; } = true;
 
+    /// <summary>Width in pixels of the plugin list on the left, as the user last left it; null = default.</summary>
+    public double? PluginListWidth { get; set; }
+
     /// <summary>Settings format version; files from before 0.8.0 have none (0).</summary>
     public int SettingsVersion { get; set; }
 
@@ -81,6 +84,16 @@ public class SettingsManager
         set
         {
             _settings.IncludeAllModVoices = value;
+            Save();
+        }
+    }
+
+    public double? PluginListWidth
+    {
+        get => _settings.PluginListWidth;
+        set
+        {
+            _settings.PluginListWidth = value;
             Save();
         }
     }

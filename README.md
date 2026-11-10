@@ -24,7 +24,7 @@ This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldV
 3. The results are cached in `%LOCALAPPDATA%\StarfieldVT\` (`cache.json` plus a search index in `index\`).
    * The cache is rebuilt automatically when the tool is updated, or when the game's plugins, archives, data folder or load order change (and loose voice files, with the mod voices option on).
    * **File** → **Delete Cache** forces a rebuild.
-4. Select a plugin or voice type on the left. Double-click a line to play it, or select it and press **Export** to save it as a `.wav` wherever you choose.
+4. Select a plugin or voice type on the left. Double-click a line to play it, or select it and press **Export** to save it as a `.wav` wherever you choose. Drag the divider between the list and the table to resize them; double-click the edge of a column header to fit that column.
 5. **Mod voices.** The tool reads voice files from every archive (archives localized to other languages are skipped) and from loose `.wem` files in `Data\Sound\Voice`. Many mods and Creations pack their voices in an archive such as `MyMod - Main.ba2` instead of `MyMod - Voices_en.ba2`; Kinggath's Watchtower (`kinggathcreations_spaceship.esm`) is one. Loose files take priority over archives, as in the game. On a PC with very many mods you can save a few seconds of loading by turning off **Options** → **Include voices from all mod archives and loose files**, which reads only `<Name> - Voices….ba2` archives.
 6. Plugins are listed by file name, so a Creation may appear under a name that differs from its store title (Watchtower is `kinggathcreations_spaceship.esm`). Only plugins with voiced lines are listed.
 7. The filter box under the lines searches the dialogue text. It supports [Lucene syntax](https://lucene.apache.org/core/4_8_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package_description) such as `"exact phrase"`, `capt*` and `ship AND crew`. With nothing selected, it searches every plugin.
@@ -42,6 +42,8 @@ sudo apt install libvlc5 vlc-plugin-base libfontconfig1 libice6 libsm6 libx11-6 
 * WSL works too, with the game's Windows install under `/mnt/c/...`. Loading is slower there, because WSL reads Windows files through a network-style link.
 
 ## Troubleshooting
+**Help** → **Open Log Folder** opens the log folder, and **Help** → **About Starfield Voice Tool** → **Copy details** copies the version, system, Data folder and log location for a bug report.
+
 The tool always writes a log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<date>.log` on Windows, `~/.local/share/StarfieldVT/logs/` on Linux. One file per day; the last 5 are kept. The log records the version, the Data folder and load order it read, which plugins it skipped and why, each archive read, and every playback or export error.
 
 For more detail, start the tool from a command prompt (or a shortcut) with these options:
@@ -67,6 +69,9 @@ The release builds bundle third-party libraries, including [Mutagen](https://git
 ## Changes in 0.8.1
 * New, original program icon: a speech bubble with a sound wave on a starry background. It replaces the face icon inherited from the original tool, whose source was unknown. The icon is drawn from scratch by [`art/make_icon.py`](art/make_icon.py) (no game art) and is covered by this repository's MIT license.
 * The window shows the icon on Linux too (before, only the Windows `.exe` had one).
+* The plugin list on the left can be resized: drag the divider between it and the table. The tool remembers the width.
+* Double-click the divider at the right edge of a column header (Voice Type, Filename, Dialogue) to fit that column to its contents, as in Windows Explorer. A double-click on a header no longer plays the selected line.
+* New **Help** menu: **Open Log Folder**, **Report a Problem…** (opens the GitHub issues page) and **About Starfield Voice Tool**. The About window shows the version, credits and license, links to the project and the third-party notices, the Data folder and settings folder in use, and a **Copy details** button for bug reports. The tool itself still never goes online; links open in your browser.
 * Because the version changed, the voice line cache rebuilds once on first start.
 
 ## Changes in 0.8.0

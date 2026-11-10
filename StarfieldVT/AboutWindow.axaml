@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="StarfieldVT.AboutWindow"
+        Title="About Starfield Voice Tool"
+        Width="600" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        Icon="/starfieldvt.ico">
+    <StackPanel Margin="20" Spacing="14">
+        <Grid ColumnDefinitions="Auto,*">
+            <Image Grid.Column="0" Width="72" Height="72" VerticalAlignment="Top"
+                   Source="avares://StarfieldVT/Assets/starfieldvt-256.png" />
+            <StackPanel Grid.Column="1" Margin="16,0,0,0" Spacing="4">
+                <TextBlock Text="Starfield Voice Tool" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Name="VersionText" />
+                <TextBlock Name="DescriptionText" TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Spacing="4">
+            <TextBlock Name="MaintainerText" TextWrapping="Wrap" />
+            <TextBlock Name="CreditsText" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Spacing="8">
+            <TextBlock Name="LicenseText" TextWrapping="Wrap" />
+            <WrapPanel>
+                <Button Content="Third-party notices" Margin="0,0,8,8" Click="Notices_Click"
+                        ToolTip.Tip="Opens THIRD-PARTY-NOTICES.md from the tool's folder" />
+                <Button Content="Project page" Margin="0,0,8,8" Click="Project_Click"
+                        ToolTip.Tip="Opens the GitHub project page in your browser" />
+                <Button Content="Latest release" Margin="0,0,8,8" Click="Release_Click"
+                        ToolTip.Tip="Opens the latest release on GitHub in your browser (the tool itself never goes online)" />
+                <Button Content="Original tool" Margin="0,0,8,8" Click="Original_Click"
+                        ToolTip.Tip="Opens yak3d's original Starfield Voice Tool on GitHub" />
+            </WrapPanel>
+        </StackPanel>
+
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Data folder:" Margin="0,0,10,4" />
+            <SelectableTextBlock Grid.Row="0" Grid.Column="1" Name="DataPathText" TextWrapping="Wrap" Margin="0,0,0,4" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Settings and logs:" Margin="0,0,10,0" />
+            <SelectableTextBlock Grid.Row="1" Grid.Column="1" Name="AppDataText" TextWrapping="Wrap" />
+        </Grid>
+
+        <TextBlock Name="MessageText" TextWrapping="Wrap" IsVisible="False" />
+
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+            <Button Grid.Column="0" Content="Copy details" Margin="0,0,8,0" Click="CopyDetails_Click"
+                    ToolTip.Tip="Copies the version, system, Data folder and log location, for a bug report" />
+            <Button Grid.Column="1" Content="Open log folder" Click="OpenLogs_Click" />
+            <Button Grid.Column="3" Content="Close" IsDefault="True" IsCancel="True" Click="Close_Click" />
+        </Grid>
+    </StackPanel>
+</Window>

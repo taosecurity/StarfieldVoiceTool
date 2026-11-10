@@ -6,11 +6,12 @@
         x:Name="MainWindowElement"
         Title="Starfield Voice Tool" Height="433" Width="1200"
         Icon="/starfieldvt.ico">
-    <Grid>
+    <Grid Name="MainGrid">
+        <!-- plugin tree | draggable divider | voice line table; the tree's width is remembered -->
         <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition />
-            <ColumnDefinition />
+            <ColumnDefinition Width="*" MinWidth="160" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="2*" MinWidth="300" />
         </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -32,6 +33,13 @@
                           ToggleType="CheckBox"
                           Click="IncludeAllModVoices_Click"
                           ToolTip.Tip="Also finds mod voices packed in archives without &quot; - Voices&quot; in the name (e.g. &quot;MyMod - Main.ba2&quot;) and loose .wem files in Data\Sound\Voice. Loading takes longer." />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="Open Log Folder" Click="OpenLogFolder_Click" />
+                <MenuItem Header="Report a Problem…" Click="ReportProblem_Click"
+                          ToolTip.Tip="Opens the GitHub issues page in your browser" />
+                <Separator />
+                <MenuItem Header="About Starfield Voice Tool" Click="About_Click" />
             </MenuItem>
         </Menu>
 
@@ -58,8 +66,12 @@
                     ToolTip.Tip="Stop playback" />
         </Grid>
 
+        <GridSplitter Grid.Row="2" Grid.Column="1" Grid.RowSpan="2" Width="6"
+                      ResizeDirection="Columns" Background="#30808080"
+                      ToolTip.Tip="Drag to resize the plugin list" />
+
         <starfieldVtUi:VoiceLineTable DataContext="{Binding VoiceLineTableViewModel}"
-                                       Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Grid.RowSpan="2" />
+                                       Grid.Row="2" Grid.Column="2" Grid.RowSpan="2" />
 
         <StackPanel Grid.Row="4" Grid.ColumnSpan="3" Grid.Column="0" Orientation="Horizontal" Margin="5">
             <ProgressBar Name="TreeBuilderProgressBar" Height="15" Width="120" IsVisible="False" />
