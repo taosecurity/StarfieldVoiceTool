@@ -27,10 +27,6 @@ public static class AudioConverter
         {
             File.WriteAllBytes(tempWemPath, wemBytes);
             Extractor.ConvertWem(tempWemPath);
-            // BnkExtractor's ww2ogg port opens the .wem and never closes it; run finalizers so the
-            // handle is released and the temp file can be deleted now rather than at the next start
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
 
             // ww2ogg logs parse errors instead of throwing, and then writes no .ogg
             if (!File.Exists(tempOggPath))

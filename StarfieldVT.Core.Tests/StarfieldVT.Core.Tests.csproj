@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StarfieldVT.Core\StarfieldVT.Core.csproj" />
+    <ProjectReference Include="..\BnkExtractor\BnkExtractor\BnkExtractor.csproj" />
   </ItemGroup>
 
 </Project>

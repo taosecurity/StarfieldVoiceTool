@@ -1,3 +1,3 @@
 [submodule "BnkExtractor"]
 	path = BnkExtractor
-	url = https://github.com/yak3d/BnkExtractor.git
+	url = https://github.com/taosecurity/BnkExtractor.git

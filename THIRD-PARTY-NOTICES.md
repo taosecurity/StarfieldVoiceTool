@@ -74,7 +74,7 @@ License text: `licenses/MIT.txt`, applied with each copyright notice below.
 | Component | Version | Copyright |
 |---|---|---|
 | Starfield Voice Tool (original) | | Copyright (c) 2024 yak |
-| BnkExtractor | submodule | Copyright (c) 2021 ds5678 (`licenses/BnkExtractor-MIT.txt`); its bnk parser is based on bnkextr, which is public domain or MIT |
+| BnkExtractor | submodule, [taosecurity/BnkExtractor](https://github.com/taosecurity/BnkExtractor) (a fork of yak3d/BnkExtractor and AssetRipper/BnkExtractor, with a file-handle fix) | Copyright (c) 2021 ds5678 (`licenses/BnkExtractor-MIT.txt`); its bnk parser is based on bnkextr, which is public domain or MIT |
 | .NET runtime (bundled in the self-contained build) | 10.0 | Copyright (c) .NET Foundation and Contributors; see `licenses/dotnet-runtime-LICENSE.txt` and `licenses/dotnet-runtime-THIRD-PARTY-NOTICES.txt` |
 | Microsoft.Bcl.AsyncInterfaces, Microsoft.Extensions.* (Configuration.Abstractions, DependencyInjection.Abstractions, Logging.Abstractions, Primitives), System.Linq.Async, System.Reactive | various | Copyright (c) .NET Foundation and Contributors |
 | Avalonia (+ Controls.DataGrid, Desktop, FreeDesktop, Native, Remote.Protocol, Skia, Themes.Fluent, Win32, X11) | 11.2.7 | Copyright (c) AvaloniaUI OÜ |
