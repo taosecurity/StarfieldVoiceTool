@@ -84,6 +84,7 @@ The release builds bundle third-party libraries, including [Mutagen](https://git
 * New **Sound Effects** tab: browse, search, play and export the game's and your mods' sound effects and music (about 35,000 sounds on a Steam install with Shattered Space and a few Creations). See [Sound effects](#sound-effects). The idea comes from [starfield-wwizard](https://github.com/yak3d/starfield-wwizard) by yak3d, the original author of this tool; this version is written from scratch from the file formats (no code was taken from it) and adds mod sounds, export, events and Linux support.
 * Sounds stored as Wwise PCM (more than half of the sound effects) are now converted too. Voice lines are unchanged: they all use Wwise Vorbis, which goes through the same converter as before.
 * A sound in a format the tool can't convert now gives a message naming the format, instead of a general conversion error.
+* Fixed in the bundled converter (our BnkExtractor fork): Wwise Vorbis sounds with loop points, such as ambient loops and some music, failed with "Could not read full string!", because the converter wrote one of the loop comments in the Ogg header with the wrong length. Voice lines have no loop points and were never affected.
 * Because the version changed, the voice line cache rebuilds once on first start.
 
 ## Changes in 0.8.1
