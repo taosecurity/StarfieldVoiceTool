@@ -11,6 +11,13 @@ namespace StarfieldVT.Core;
 public static class LoadOrderFallback
 {
     private static readonly string[] PluginExtensionOrder = [".esm", ".esl", ".esp"];
+    private const uint LightFlag = 0x100;
+    private const uint MediumFlag = 0x400;
+
+    /// <summary>A plugin header with both the light and the medium flag set, which Mutagen can't read.</summary>
+    public sealed class BothLightAndMediumException(string plugin) : IOException(
+        $"{plugin} has both the light (ESL) and the medium flag set in its header, so it can't be read. " +
+        "Its author (or you, in xEdit or the Creation Kit) should clear one of the two flags.");
 
     /// <summary>
     /// The plugins in <paramref name="dataFolderPath"/> that aren't in <paramref name="listed"/>, ordered so
@@ -32,7 +39,8 @@ public static class LoadOrderFallback
     }
 
     /// <summary>Every plugin in the Data folder with its masters. Unreadable plugins are logged and left out.</summary>
-    public static Dictionary<string, IReadOnlyList<string>> ReadDataFolderPlugins(string dataFolderPath)
+    public static Dictionary<string, IReadOnlyList<string>> ReadDataFolderPlugins(string dataFolderPath,
+        List<string>? unreadable = null)
     {
         var plugins = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in Directory.EnumerateFiles(dataFolderPath))
@@ -44,9 +52,15 @@ public static class LoadOrderFallback
             {
                 plugins[name] = ReadMasters(file);
             }
+            catch (BothLightAndMediumException ex)
+            {
+                Log.Warning("Skipping {Plugin}: {Reason}", name, ex.Message);
+                unreadable?.Add(name);
+            }
             catch (Exception ex)
             {
                 Log.Warning(ex, "Could not read the plugin header of {Plugin}, skipping it", name);
+                unreadable?.Add(name);
             }
         }
 
@@ -167,7 +181,11 @@ public static class LoadOrderFallback
             throw new InvalidDataException("Not a plugin file (no TES4 header)");
 
         var dataSize = reader.ReadUInt32();
-        reader.ReadBytes(16); // flags, form id, version control, form version, unknown
+        var flags = reader.ReadUInt32();
+        // Mutagen stops the whole load ("Mod was both a light and medium master") without naming the plugin
+        if ((flags & LightFlag) != 0 && (flags & MediumFlag) != 0)
+            throw new BothLightAndMediumException(Path.GetFileName(pluginPath));
+        reader.ReadBytes(12); // form id, version control, form version, unknown
         var data = reader.ReadBytes((int)dataSize);
 
         var masters = new List<string>();

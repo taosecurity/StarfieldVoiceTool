@@ -100,6 +100,32 @@ public class LoadOrderFallbackTests
         Assert.Equal(["Good.esm"], LoadOrderFallback.FindUnlistedPlugins(dir.Path, []));
     }
 
+    [Theory]
+    [InlineData(0x100u, false)]
+    [InlineData(0x400u, false)]
+    [InlineData(0x501u, true)]
+    public void ReadDataFolderPlugins_SkipsPluginsWithLightAndMediumFlags(uint flags, bool skipped)
+    {
+        using var dir = new TempDir();
+        var header = BuildHeader();
+        BitConverter.GetBytes(flags).CopyTo(header, 8);
+        File.WriteAllBytes(Path.Combine(dir.Path, "Flagged.esm"), header);
+        File.WriteAllBytes(Path.Combine(dir.Path, "Good.esm"), BuildHeader());
+
+        var unreadable = new List<string>();
+        var plugins = LoadOrderFallback.ReadDataFolderPlugins(dir.Path, unreadable);
+
+        Assert.Equal(!skipped, plugins.ContainsKey("Flagged.esm"));
+        Assert.True(plugins.ContainsKey("Good.esm"));
+        Assert.Equal(skipped ? ["Flagged.esm"] : [], unreadable);
+        if (skipped)
+        {
+            var ex = Assert.Throws<LoadOrderFallback.BothLightAndMediumException>(
+                () => LoadOrderFallback.ReadMasters(Path.Combine(dir.Path, "Flagged.esm")));
+            Assert.Contains("Flagged.esm", ex.Message);
+        }
+    }
+
     private static byte[] BuildHeader(params (string Type, byte[] Data)[] subrecords)
     {
         var body = new MemoryStream();

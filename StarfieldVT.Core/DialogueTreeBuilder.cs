@@ -136,9 +136,12 @@ namespace StarfieldVT.Core
                 .ToList();
             Log.Information("Load order has {Count} enabled plugins", enabled.Count);
 
-            var onDisk = LoadOrderFallback.ReadDataFolderPlugins(dataFolderPath);
+            var unreadable = new List<string>();
+            var onDisk = LoadOrderFallback.ReadDataFolderPlugins(dataFolderPath, unreadable);
             var kept = LoadOrderFallback.KeepLoadable(enabled, onDisk, out var notOnDisk, out var missingMasters,
                 out var addedMasters);
+            // unreadable plugins were logged when their header was read; they are on disk, not missing
+            notOnDisk.RemoveAll(name => unreadable.Contains(name, StringComparer.OrdinalIgnoreCase));
             if (addedMasters.Count > 0)
             {
                 Log.Information("Also loading {Plugins}: masters of enabled plugins that are in the Data folder " +
@@ -153,7 +156,10 @@ namespace StarfieldVT.Core
             }
             foreach (var (plugin, master) in missingMasters)
             {
-                Log.Warning("Skipping {Plugin}: master {Master} is not in the Data folder or loads after it", plugin, master);
+                if (unreadable.Contains(master, StringComparer.OrdinalIgnoreCase))
+                    Log.Warning("Skipping {Plugin}: its master {Master} can't be read (see above)", plugin, master);
+                else
+                    Log.Warning("Skipping {Plugin}: master {Master} is not in the Data folder or loads after it", plugin, master);
             }
 
             var unlisted = noPluginsTxt ? LoadOrderFallback.FindUnlistedPlugins(onDisk, kept) : [];
