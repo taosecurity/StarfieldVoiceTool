@@ -84,6 +84,7 @@ The release builds bundle third-party libraries, including [Mutagen](https://git
 
 ## Changes in 0.9.1
 * The Sound Effects tab also lists sounds stored inside sound bank (`.bnk`) files, not only separate `.wem` files. In the base game that adds 97 sounds (the player character's sprint breathing, in the `VOC` group); mods that keep short sounds in their banks show them too. They play and export like any other sound, and the **Source** column names the bank they're in.
+* Fixed: loading failed with "Mod was both a light and medium master" when any plugin in the load order had both the light (ESL) and the medium flag set in its header, and the message didn't say which plugin. That plugin is now skipped (along with any plugin that needs it), the log names it, and everything else loads. To use the plugin's lines, clear one of the two flags in xEdit or the Creation Kit.
 * Because the version changed, the voice line cache rebuilds once on first start.
 
 ## Changes in 0.9.0

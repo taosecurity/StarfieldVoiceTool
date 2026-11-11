@@ -105,7 +105,7 @@ Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.loc
 - It never changes game files, plugins, archives, `Plugins.txt` (on Windows) or saves.
 - It never uploads anything and needs no network connection.
 - English voice files only; archives localized to other languages are skipped.
-- Only enabled plugins in the load order (or, without `Plugins.txt`, every plugin in `Data`) are listed. Plugins whose masters are missing are skipped.
+- Only enabled plugins in the load order (or, without `Plugins.txt`, every plugin in `Data`) are listed. Plugins whose masters are missing are skipped, and so are plugins with both the light and the medium flag in their header (the log names them; clearing one flag in xEdit or the Creation Kit fixes it).
 - Lines without a voice file (the player's lines, unvoiced text) are not listed.
 - Sound effects: streamed `.wem` files in `sound\soundbanks` are listed, and sounds stored inside the `.bnk` banks the game uses (the last copy of each bank wins). Inside banks, prefetch copies of streamed sounds and Wwise plugin data (reverb impulse responses, JSON `Path` starting `Plugins\`) are skipped. Wwise PCM and Wwise Vorbis are converted; any other codec is refused with a message naming it. The sound list is not cached: it is read again each time the tool starts and the tab is opened.
 - The window is required: it doesn't run headless or from a script.
