@@ -47,7 +47,7 @@ public static class BulkExporter
         Log.Information("Bulk export of {Count} files to {Folder}, layout {Layout}, list.csv {Csv}",
             items.Count, root, options.Layout, options.CsvHeader == null ? "off" : "on");
 
-        int written = 0, kept = 0, failed = 0, done = 0;
+        int written = 0, kept = 0, failed = 0, done = 0, unconfirmed = 0;
         var cancelled = false;
         var failures = new List<ExportFailure>();
         var present = new List<ExportItem<T>>();
@@ -68,24 +68,14 @@ public static class BulkExporter
             string? partial = null;
             try
             {
+                item = OwnPath(root, original, owners, identity, warn: true);
                 var path = ExportLayout.ResolveInside(root, item.RelativePath);
-                for (var n = 1;
-                     n < 100 && owners != null && File.Exists(path) && owners.TryGetValue(item.RelativePath, out var owner) &&
-                     !SameItem(owner, item, identity);
-                     n++)
-                {
-                    var other = ExportLayout.WithSuffix(original.RelativePath,
-                        ExportLayout.StableHash(original.Description) + (n == 1 ? "" : "_" + n));
-                    Log.Warning("{Path} is another item's file (the earlier list.csv lists {Owner} there), so {Item} goes to {Other}",
-                        item.RelativePath, string.Join(", ", identity.Where(c => c < owner.Count).Select(c => owner[c])), item.Description, other);
-                    item = item with { RelativePath = other };
-                    path = ExportLayout.ResolveInside(root, other);
-                }
 
                 if (File.Exists(path))
                 {
                     kept++;
                     present.Add(item);
+                    if (owners != null && !owners.ContainsKey(item.RelativePath)) unconfirmed++;
                     Log.Debug("Kept {Path} (already there)", item.RelativePath);
                 }
                 else
@@ -110,6 +100,13 @@ public static class BulkExporter
 
             done++;
             progress?.Report(new ExportProgress(done, items.Count, item.RelativePath));
+        }
+
+        if (unconfirmed > 0)
+        {
+            Log.Warning("{Count} files already in {Folder} were kept although the earlier list.csv doesn't list them " +
+                        "(it is missing, has other columns, or couldn't be written last time), so their items couldn't be checked. " +
+                        "If this folder holds another export, export into a new folder instead", unconfirmed, root);
         }
 
         string? csvPath = null;
@@ -233,6 +230,67 @@ public static class BulkExporter
         }
 
         return earlier;
+    }
+
+    /// <summary>
+    /// The paths a run into this folder would use: the same as <see cref="Run{T}"/>, so an item whose
+    /// path holds another item's file (by the earlier list.csv) shows its hashed name. Writes nothing;
+    /// for --list. An item with no free name keeps its first path here (the run reports it as failed).
+    /// </summary>
+    public static List<ExportItem<T>> PlannedPaths<T>(IReadOnlyList<ExportItem<T>> items, string outFolder, IReadOnlyList<string>? csvHeader)
+    {
+        if (csvHeader == null || !Directory.Exists(outFolder)) return [.. items];
+        var root = Path.GetFullPath(outFolder);
+        var owners = EarlierOwners(Path.Combine(root, ExportCsv.FileName), csvHeader);
+        var identity = ExportLayout.IdentityColumns(csvHeader);
+        return items.Select(i =>
+        {
+            try
+            {
+                return OwnPath(root, i, owners, identity, warn: false);
+            }
+            catch (IOException)
+            {
+                return i;
+            }
+        }).ToList();
+    }
+
+    /// <summary>The most tries at a free hashed name before an item is reported as failed.</summary>
+    private const int MaxRenames = 99;
+
+    /// <summary>
+    /// The item, moved to <c>&lt;name&gt;_&lt;hash&gt;.wav</c> (then <c>_2</c> ...) while its path holds a
+    /// file that the earlier list.csv lists under another item. Throws when no free name is left, so
+    /// another item's file is never kept.
+    /// </summary>
+    private static ExportItem<T> OwnPath<T>(string root, ExportItem<T> original, Dictionary<string, List<string>>? owners, int[] identity, bool warn)
+    {
+        var item = original;
+        for (var n = 1; ; n++)
+        {
+            if (owners == null || !owners.TryGetValue(item.RelativePath, out var owner) || SameItem(owner, item, identity) ||
+                !File.Exists(ExportLayout.ResolveInside(root, item.RelativePath)))
+            {
+                return item;
+            }
+
+            if (n > MaxRenames)
+            {
+                throw new IOException(
+                    $"{original.RelativePath} and {MaxRenames} hashed names after it all hold other items' files (by list.csv); export into a new folder.");
+            }
+
+            var other = ExportLayout.WithSuffix(original.RelativePath,
+                ExportLayout.StableHash(original.Description) + (n == 1 ? "" : "_" + n));
+            if (warn)
+            {
+                Log.Warning("{Path} is another item's file (the earlier list.csv lists {Owner} there), so {Item} goes to {Other}",
+                    item.RelativePath, string.Join(", ", identity.Where(c => c < owner.Count).Select(c => owner[c])), item.Description, other);
+            }
+
+            item = item with { RelativePath = other };
+        }
     }
 
     /// <summary>Each file the earlier list.csv names, with its row (the first row wins); empty when there is no usable list.</summary>

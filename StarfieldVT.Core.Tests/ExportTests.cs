@@ -507,6 +507,46 @@ public class ExportTests : IDisposable
     }
 
     [Fact]
+    public void PlannedPathsShowTheHashedName()
+    {
+        var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false);
+        Assert.Equal(b[0].RelativePath, BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns)[0].RelativePath); // no folder yet
+        BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
+
+        var planned = BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns);
+        var moved = ExportLayout.WithSuffix(b[0].RelativePath, ExportLayout.StableHash(b[0].Description));
+        Assert.Equal(moved, planned[0].RelativePath);
+        Assert.Equal(a[0].RelativePath, BulkExporter.PlannedPaths(a, _dir, ExportLayout.VoiceColumns)[0].RelativePath);
+        Assert.Equal(b[0].RelativePath, BulkExporter.PlannedPaths(b, _dir, null)[0].RelativePath); // --no-csv checks nothing
+        Assert.False(File.Exists(Path.Combine(_dir, moved))); // nothing written
+
+        var summary = BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
+        Assert.True(File.Exists(Path.Combine(_dir, moved)));
+        Assert.Equal(1, summary.Written);
+    }
+
+    [Fact]
+    public void WithNoFreeNameTheItemFailsInsteadOfKeepingAnotherFile()
+    {
+        var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false);
+        Directory.CreateDirectory(_dir);
+        var hash = ExportLayout.StableHash(b[0].Description);
+        var taken = new List<string> { b[0].RelativePath };
+        for (var n = 1; n <= 99; n++) taken.Add(ExportLayout.WithSuffix(b[0].RelativePath, hash + (n == 1 ? "" : "_" + n)));
+        foreach (var path in taken) File.WriteAllText(Path.Combine(_dir, path), "RIFF ModA.esm");
+        ExportCsv.Write(Path.Combine(_dir, ExportCsv.FileName), ExportLayout.VoiceColumns,
+            taken.Select(p => (IReadOnlyList<string>)[p, .. a[0].CsvRow]).ToList());
+
+        var summary = BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
+        Assert.Equal((0, 0, 1), (summary.Written, summary.Kept, summary.Failed));
+        Assert.Contains("new folder", summary.Failures[0].Message);
+        Assert.All(taken, p => Assert.Equal("RIFF ModA.esm", File.ReadAllText(Path.Combine(_dir, p))));
+        Assert.DoesNotContain(ExportCsv.Parse(File.ReadAllText(summary.CsvPath!)).Skip(1), r => r[1] == "ModB.esm");
+    }
+
+    [Fact]
     public void TheSameItemIsKeptWhenOnlyItsDialogueChanged()
     {
         BulkExporter.Run(ExportLayout.ForVoices([Voice("a/0001.wem", dialogue: "Hello")], keepFolders: false), _dir, VoiceCsv, VoiceConvert);

@@ -286,20 +286,104 @@ public static class Program
 
     private static bool WindowRunning()
     {
+        System.Diagnostics.Process[] processes;
+        int mySession;
         try
         {
             using var me = System.Diagnostics.Process.GetCurrentProcess();
-            var processes = System.Diagnostics.Process.GetProcessesByName(VoiceIndexPlan.WindowProcessName);
-            var sessions = processes.Select(p => p.SessionId).ToList();
-            foreach (var p in processes) p.Dispose();
-            return VoiceIndexPlan.AnyInSession(sessions, me.SessionId);
+            mySession = me.SessionId;
+            processes = System.Diagnostics.Process.GetProcessesByName(VoiceIndexPlan.WindowProcessName);
         }
         catch (Exception ex)
         {
             Log.Debug(ex, "Could not list processes; assuming the window is closed");
             return false;
         }
+
+        var myAccount = AccountOf(Environment.ProcessId);
+        var windows = new List<VoiceIndexPlan.WindowProcess>();
+        try
+        {
+            foreach (var p in processes)
+            {
+                bool? sameSession = null;
+                try
+                {
+                    sameSession = p.SessionId == mySession;
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+                {
+                    // the process is ending, or its session can't be read
+                }
+
+                var owner = AccountOf(p.Id);
+                bool? sameAccount = owner != null && myAccount != null ? owner == myAccount : null;
+                windows.Add(new VoiceIndexPlan.WindowProcess(sameAccount, sameSession));
+                Log.Debug("StarfieldVT process {Id}: this account {Account}, this session {Session}",
+                    p.Id, sameAccount?.ToString() ?? "unknown", sameSession?.ToString() ?? "unknown");
+            }
+        }
+        finally
+        {
+            foreach (var p in processes) p.Dispose();
+        }
+
+        return VoiceIndexPlan.AnyOfMine(windows);
     }
+
+    /// <summary>The account a process runs under (a Windows SID, or a Linux uid), or null when it can't be read.</summary>
+    private static string? AccountOf(int pid)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows()) return WindowsAccountOf(pid);
+            if (OperatingSystem.IsLinux())
+            {
+                var uid = File.ReadLines($"/proc/{pid}/status").FirstOrDefault(l => l.StartsWith("Uid:", StringComparison.Ordinal));
+                return uid?.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ElementAtOrDefault(1);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not read the account of process {Id}", pid);
+        }
+
+        return null;
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string? WindowsAccountOf(int pid)
+    {
+        const uint ProcessQueryLimitedInformation = 0x1000, TokenQuery = 0x0008;
+        var process = OpenProcess(ProcessQueryLimitedInformation, false, (uint)pid);
+        if (process == IntPtr.Zero) return null; // usually another account's process
+        try
+        {
+            if (!OpenProcessToken(process, TokenQuery, out var token)) return null;
+            try
+            {
+                using var identity = new System.Security.Principal.WindowsIdentity(token);
+                return identity.User?.Value;
+            }
+            finally
+            {
+                CloseHandle(token);
+            }
+        }
+        finally
+        {
+            CloseHandle(process);
+        }
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr handle);
 
     /// <summary>The export can't run; the message says why and what to do (exit code 4, no stack trace).</summary>
     private sealed class ExportStoppedException(string message) : Exception(message);
@@ -312,6 +396,8 @@ public static class Program
 
         if (options.List)
         {
+            // show the names a run into this folder would use (another item's file there means a hashed name)
+            if (options.OutFolder != null) items = BulkExporter.PlannedPaths(items, options.OutFolder, options.NoCsv ? null : columns);
             Console.WriteLine($"{items.Count:N0} {what} would be exported ({(options.Flat ? "flat" : "game folders")}, list.csv {(options.NoCsv ? "off" : "on")}):");
             foreach (var item in items.Take(ListRows)) Console.WriteLine($"  {item.RelativePath}  ({item.Description})");
             if (items.Count > ListRows) Console.WriteLine($"  ... and {items.Count - ListRows:N0} more");

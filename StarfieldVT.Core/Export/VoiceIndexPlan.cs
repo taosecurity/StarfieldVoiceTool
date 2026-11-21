@@ -38,11 +38,19 @@ public static class VoiceIndexPlan
         "run to finish, then run the command again.";
 
     /// <summary>
-    /// A window counts only in this Windows session: each account has its own search index under its
-    /// own %LOCALAPPDATA%, so another user's open window locks nothing here.
+    /// What is known about one StarfieldVT process: whether it runs under this account (null when
+    /// its owner can't be read) and whether it is in this session (null when that can't be read either).
     /// </summary>
-    public static bool AnyInSession(IEnumerable<int> windowSessionIds, int mySessionId) =>
-        windowSessionIds.Any(id => id == mySessionId);
+    public readonly record struct WindowProcess(bool? SameAccount, bool? SameSession);
+
+    /// <summary>
+    /// A window counts when it runs under this account, in any session (an SSH login or a Linux
+    /// terminal has its own session but shares the account's search index). Each account has its own
+    /// index under its own local app data, so another account's window locks nothing here. When the
+    /// owner can't be read, the session decides; when neither can be read, the window counts.
+    /// </summary>
+    public static bool AnyOfMine(IEnumerable<WindowProcess> windows) =>
+        windows.Any(w => w.SameAccount ?? w.SameSession ?? true);
 
     /// <summary>The exception (or one inside it) is Lucene's "the index is locked" error.</summary>
     public static bool IsIndexLocked(Exception? ex)

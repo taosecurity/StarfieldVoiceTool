@@ -41,11 +41,14 @@ public class ExportOptionsTests
     }
 
     [Fact]
-    public void OnlyWindowsInThisSessionCount()
+    public void OnlyThisAccountsWindowsCount()
     {
-        Assert.False(VoiceIndexPlan.AnyInSession([2, 3], 1)); // another account's window
-        Assert.True(VoiceIndexPlan.AnyInSession([2, 1], 1));
-        Assert.False(VoiceIndexPlan.AnyInSession([], 1));
+        Assert.True(VoiceIndexPlan.AnyOfMine([new(true, false)])); // my window, another session (SSH, a Linux terminal)
+        Assert.False(VoiceIndexPlan.AnyOfMine([new(false, true)])); // another account's window
+        Assert.False(VoiceIndexPlan.AnyOfMine([new(false, false), new(null, false)])); // owner unknown: the session decides
+        Assert.True(VoiceIndexPlan.AnyOfMine([new(null, true)]));
+        Assert.True(VoiceIndexPlan.AnyOfMine([new(null, null)])); // nothing readable: count it
+        Assert.False(VoiceIndexPlan.AnyOfMine([]));
     }
 
     [Fact]
