@@ -55,7 +55,7 @@ public static class AudioConverter
                 Directory.CreateDirectory(directoryName);
             }
 
-            Log.Information("Writing converted wem file to wav file at {WavPath}", wavPath);
+            Log.Debug("Writing converted wem file to wav file at {WavPath}", wavPath);
             OggToWav.Convert(tempOggPath, wavPath);
         }
         catch (Exception e)
@@ -84,7 +84,7 @@ public static class AudioConverter
                 WwisePcm.ToWav(wemBytes, output);
             }
 
-            Log.Information("Wrote PCM sound to wav file at {WavPath}", wavPath);
+            Log.Debug("Wrote PCM sound to wav file at {WavPath}", wavPath);
         }
         catch (Exception e)
         {
