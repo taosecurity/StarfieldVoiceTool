@@ -86,7 +86,8 @@ public sealed class ExportOptions
 
         Options:
           --out <folder>        Where the WAV files go (created if missing). Not needed with --list.
-          --group <name>        Sounds: one group (AMB, WPN, MUS, ...) or a mod's archive name.
+          --group <name>        Sounds: one group (AMB, WPN, MUS, ...) or a mod's archive name
+                                (also as "Mod: <archive>", as in list.csv's Group column).
           --plugin <file>       Voices: one plugin, e.g. Starfield.esm.
           --voice-type <id>     Voices: one voice type, e.g. NPCFAstrid.
           --search <text>       The same search as the tab's search box.

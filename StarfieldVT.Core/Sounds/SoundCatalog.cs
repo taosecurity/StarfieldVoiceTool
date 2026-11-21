@@ -47,7 +47,8 @@ public static class SoundCatalog
     /// </summary>
     public static SoundGroup? FindGroup(IEnumerable<SoundGroup> groups, string name)
     {
-        const string modPrefix = "Mod: ";
+        const string modPrefix = "Mod:";
+        name = name.Trim();
         var archive = name.StartsWith(modPrefix, StringComparison.OrdinalIgnoreCase) ? name[modPrefix.Length..].Trim() : name;
         return groups.FirstOrDefault(g =>
             string.Equals(g.Group, name, StringComparison.OrdinalIgnoreCase) ||

@@ -56,6 +56,8 @@ public class ExportTests : IDisposable
         Assert.Equal("ShatteredSpace - Main01.ba2", SoundCatalog.FindGroup(groups, "Mod: ShatteredSpace - Main01.ba2")?.ModSource);
         Assert.Equal("ShatteredSpace - Main01.ba2", SoundCatalog.FindGroup(groups, "shatteredspace - main01.ba2")?.ModSource);
         Assert.Equal("WPN", SoundCatalog.FindGroup(groups, "wpn")?.Group);
+        Assert.Equal("ShatteredSpace - Main01.ba2", SoundCatalog.FindGroup(groups, "Mod:ShatteredSpace - Main01.ba2")?.ModSource);
+        Assert.Equal("WPN", SoundCatalog.FindGroup(groups, " WPN ")?.Group);
         Assert.Null(SoundCatalog.FindGroup(groups, "Mod: WPN"));
         // The file still goes under its Wwise folder, as the game lays it out.
         Assert.Equal(P("WPN", "Hand", "B_2.wav"), items[1].RelativePath);
