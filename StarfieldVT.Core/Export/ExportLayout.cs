@@ -129,7 +129,7 @@ public static class ExportLayout
             [
                 sound.Id.ToString(CultureInfo.InvariantCulture),
                 sound.Name,
-                sound.Group,
+                SoundCatalog.GroupLabel(sound),
                 sound.Folder,
                 string.Join("; ", sound.Events),
                 sound.Bank ?? "",

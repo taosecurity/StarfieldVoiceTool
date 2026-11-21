@@ -37,6 +37,22 @@ public class ExportTests : IDisposable
     }
 
     [Fact]
+    public void CsvGroupMatchesTheWindowsGroupList()
+    {
+        var game = Sound(1, "A", "WPN", "Hand");
+        var dlc = Sound(2, "B", "WPN", "Hand", source: "ShatteredSpace - Main01.ba2");
+        dlc.FromMod = true;
+        var items = ExportLayout.ForSounds([game, dlc], keepFolders: true);
+
+        var labels = SoundCatalog.Groups([game, dlc]).Skip(1).Select(g => g.Label).ToList();
+        Assert.Equal(["WPN (1)", "Mod: ShatteredSpace - Main01.ba2 (1)"], labels);
+        Assert.Equal("WPN", items[0].CsvRow[2]);
+        Assert.Equal("Mod: ShatteredSpace - Main01.ba2", items[1].CsvRow[2]);
+        // The file still goes under its Wwise folder, as the game lays it out.
+        Assert.Equal(P("WPN", "Hand", "B_2.wav"), items[1].RelativePath);
+    }
+
+    [Fact]
     public void SoundsWithNoFolderSitInTheirGroup()
     {
         var items = ExportLayout.ForSounds([Sound(3, "AMB_Wind", "AMB", "")], keepFolders: true);

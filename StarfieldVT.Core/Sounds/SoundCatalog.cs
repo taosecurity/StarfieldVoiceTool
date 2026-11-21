@@ -35,6 +35,12 @@ public static class SoundCatalog
         return groups;
     }
 
+    /// <summary>
+    /// The group a sound is listed under on the left, without its count: the Wwise group (AMB, WPN, ...)
+    /// for a base game sound, "Mod: &lt;archive&gt;" for a DLC, Creation or mod sound. list.csv's Group column uses it.
+    /// </summary>
+    public static string GroupLabel(SoundEffect sound) => sound.FromMod ? $"Mod: {sound.Source}" : sound.Group;
+
     /// <summary>Split a search into words; a sound must match every word.</summary>
     public static string[] Terms(string? search) =>
         (search ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
