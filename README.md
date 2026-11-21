@@ -1,13 +1,29 @@
 ﻿![Workflow](https://github.com/taosecurity/StarfieldVoiceTool/actions/workflows/dotnet-desktop.yml/badge.svg?branch=main)  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 # Starfield Voice Tool
-Browse every voiced line in Starfield and in your installed mods, by plugin and voice type; search the dialogue text, listen to any line and save it as a `.wav`. Useful for finding a companion's lines, checking what a mod's voice files say, or getting audio clips for your own mod or video. The **Sound Effects** tab does the same for the game's and your mods' sound effects and music: about 35,000 sounds by name, ID and Wwise event.
+Browse every voiced line in Starfield and in your installed mods, by plugin and voice type; search the dialogue text, listen to any line and save it as a `.wav`. Useful for finding a companion's lines, checking what a mod's voice files say, or getting audio clips for your own mod or video. The **Sound Effects** tab does the same for the game's and your mods' sound effects and music: about 35,000 sounds by name, ID and Wwise event. Both tabs can export many lines or sounds at once, and the `starfieldvt-export` command does the same from a script.
 
 **First try:** download the zip for your system from [Releases](https://github.com/taosecurity/StarfieldVoiceTool/releases), extract it, and run `StarfieldVT.exe`. Steam installs are found automatically; otherwise point it at your game's `Data` folder. Once loading finishes, pick **Starfield.esm** on the left, type `captain` in the filter box under the lines, and double-click a line to hear it.
 
-This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes and a sound effects browser; see [Changes](#changes-in-090).
+This is a fork of [yak3d/StarfieldVoiceTool](https://github.com/yak3d/StarfieldVoiceTool) with bug fixes, a sound effects browser and bulk export; see [Changes in 0.10.0](#changes-in-0100) and [CHANGELOG.md](CHANGELOG.md).
 
 **For AI assistants:** see [AGENTS.md](AGENTS.md) for install steps, options, log locations and limits.
+
+## Example
+This lists the microgun sounds a bulk export would write, without writing anything. It runs in a command prompt opened in the tool's folder.
+
+```
+> starfieldvt-export sounds --list --group WPN --search microgun
+Reading sound archives in C:\Program Files (x86)\Steam\steamapps\common\Starfield\Data...
+Found 35491 sounds (6914 from mods, 97 inside banks, 1 without a name) in 19 sources in 1.3 seconds
+100 sounds would be exported (game folders, list.csv on):
+  WPN\Hand\Microgun\WPN_Hand_AlliedMicrogun_FireEnd_NPC_Auto_LayerB_01_811909741.wav  (sound 811909741 from Starfield - WwiseSounds04.ba2)
+  WPN\Hand\Microgun\WPN_Hand_AlliedMicrogun_FireEnd_NPC_Auto_LayerB_02_613599831.wav  (sound 613599831 from Starfield - WwiseSounds03.ba2)
+...
+  ... and 80 more
+```
+
+Leave out `--list` and add `--out <folder>` to write the `.wav` files; see [Bulk export](#bulk-export).
 
 ## Requirements
 * Starfield must be installed. Steam installs are detected automatically; otherwise you'll be asked for the game's `Data` folder (the one containing `Starfield.esm`).
@@ -34,7 +50,7 @@ The **Sound Effects** tab lists every Wwise sound the game can load: the sound e
 
 1. Pick a group on the left: the base game's sounds by their Wwise folder (`AMB` ambience, `FST` footsteps, `MUS` music, `NPC` creatures and people, `UI`, `VEH` ships and vehicles, `WPN` weapons, ...), or one mod's sounds (**Mod: …**).
 2. Type in the search box to narrow the list. Each word must match the sound's name, folder, bank or one of its events, or be its full ID: `lightsaber`, `80667371`, `MUS_AstralLounge`, `wind exteriors`.
-3. Double-click a sound (or press ▶) to hear it. **Export** saves the selected sound as a `.wav`; with several selected, it asks for a folder and names each file `<Name>_<ID>.wav`.
+3. Double-click a sound (or press ▶) to hear it. **Export** saves the selected sound as a `.wav`. With several selected, or with **Export All Shown (N)**, it exports them all to a folder; see [Bulk export](#bulk-export).
 4. **Copy ID** and **Copy Events** put the selected sounds' Wwise IDs or event names on the clipboard, for use in your own mod or in the Creation Kit.
 
 The columns: **ID** is the Wwise ID (the sound's file is `sound\soundbanks\<ID>.wem`), **Events** are the Wwise events that can play it, **Bank** is the sound bank that lists it, **Source** is the archive it is read from (for a sound stored inside a sound bank, also the bank's file, e.g. `Starfield - WwiseSoundsPatch.ba2, inside 2286754810.bnk`), and **Replaces** names earlier archives that hold the same ID. When two archives hold the same sound, the one loaded later wins, as in the game: the base game's `WwiseSoundsPatch` archive replaces about 2,000 older sounds, and a mod can replace any sound the same way.
@@ -42,6 +58,83 @@ The columns: **ID** is the Wwise ID (the sound's file is `sound\soundbanks\<ID>.
 The names and events come from the JSON files Wwise writes next to each sound bank, which the game and most mods ship. A sound that no bank names is listed by its ID in the **Other** group.
 
 Most sounds are separate `.wem` files, but a bank (`.bnk`) can also hold short sounds inside itself; in the base game these are the player character's sprint breathing (97 sounds in the `VOC` group). These are listed too. Two other kinds of data inside banks are left out because they aren't separate sounds: the opening of a sound whose full `.wem` is already listed (Wwise keeps it in the bank so playback can start at once), and data for Wwise effects such as reverb.
+
+## Bulk export
+Both tabs can save many voice lines or sounds as `.wav` files in one go, and the `starfieldvt-export` command does the same without the window.
+
+### In the window
+The bar under each tab's table has these controls:
+
+* **Export** saves the selected row as a `.wav` wherever you choose. With several rows selected, it asks for a folder and exports them all. In Voice Lines, Ctrl+click adds or removes a line and Shift+click selects a range; a double-click still plays the line you clicked.
+* **Export All Shown (N)** exports every row the table shows, N of them: the plugin, voice type or group picked on the left, narrowed by the search or filter box. Pick a folder, and the export starts.
+* **Keep game folders** (on by default) keeps the game's layout: sounds go to `<Group>\<Folder>\<Name>_<ID>.wav` (for example `WPN\Hand\Microgun\...`), sounds that no bank names to `Unnamed\<ID>.wav`, and voice lines to `<Plugin>\<Voice type>\<Voice type>_<file>.wav`. Off, every file goes into the one folder you chose.
+* **Write list.csv** (on by default) writes `list.csv` in that folder, one row per file. The two check boxes are shared by both tabs and remembered.
+
+While an export runs, a progress bar and a **Cancel** button replace the buttons, and the line under the table counts the files. Only one export runs at a time. **Cancel** stops after the current file, and `list.csv` lists what was written up to then.
+
+An export of more than 1,000 files first writes 50 of them, then asks whether to go on. The question gives a size estimate from those 50 files and the drive's free space, and warns when the space may not be enough. If you say no, the 50 files and their `list.csv` stay in the folder.
+
+Files that are already in the export folder are kept, not written again, so running the same export a second time only adds what is missing. A file is written under a temporary `.part` name first and renamed when it is complete, so a stopped export never leaves a broken `.wav` behind. Names from mods that Windows doesn't allow in a file name get `_` in place of the bad characters.
+
+The columns of `list.csv` (UTF-8, so Excel shows accented names correctly):
+
+* Sounds: **File** (the path below the export folder), **ID**, **Name**, **Group**, **Folder**, **Events**, **Bank**, **Source** and **Replaces**, as on the Sound Effects tab. Several events or replaced archives are joined with `; `.
+* Voice lines: **File**, **Plugin**, **Voice Type**, **Game File** (the voice file's path in the game) and **Dialogue**.
+
+### From the command line
+`starfieldvt-export.exe` is in the same folder as `StarfieldVT.exe` (`starfieldvt-export` on Linux). Open a command prompt there: open the folder in File Explorer, click the address bar at the top, type `cmd` and press Enter. Then run one of these:
+
+```
+starfieldvt-export sounds --out <folder> [--group WPN] [--search "lightsaber"] [options]
+starfieldvt-export voices --out <folder> [--plugin Starfield.esm] [--voice-type NPCFSarahMorgan] [--search "good to see you"] [options]
+```
+
+The command (`sounds` or `voices`) comes first. The options:
+
+| Option | What it does |
+|---|---|
+| `--out <folder>` | Where the `.wav` files go. The folder is created if it is missing. Not needed with `--list`. |
+| `--group <name>` | Sounds only: one group (`AMB`, `WPN`, `MUS`, ...) or a mod's archive name, as on the left of the Sound Effects tab. |
+| `--plugin <file>` | Voices only: one plugin, such as `Starfield.esm`. |
+| `--voice-type <id>` | Voices only: one voice type, such as `NPCFSarahMorgan`. |
+| `--search <text>` | The same search as the tab's search or filter box. |
+| `--flat` | Puts every file in one folder, like turning off **Keep game folders**. |
+| `--no-csv` | Doesn't write `list.csv`. |
+| `--list` | A dry run: prints how many files would be exported and the first 20, and writes nothing. |
+| `--game <folder>` | The game's `Data` folder. Without it, the tool uses the path the window saved, then looks for a Steam or Xbox install. |
+| `--verbose`, `-v` | Logs one line for every file. |
+| `--log <file>` | Writes the log to `<file>` instead of the daily file. |
+| `--help`, `-h` | Shows the help. |
+
+A value can also follow an `=`, as in `--group=WPN`. An unknown group, plugin or voice type stops the command with the names that do exist; for a voice type, it also names the plugins that have it.
+
+Example, writing the 84 microgun firing sounds (folder name changed):
+
+```
+> starfieldvt-export sounds --group WPN --search "microgun fire" --out "D:\Exports\microgun"
+Reading sound archives in C:\Program Files (x86)\Steam\steamapps\common\Starfield\Data...
+Found 35491 sounds (6914 from mods, 97 inside banks, 1 without a name) in 19 sources in 1.2 seconds
+Bulk export of 84 files to D:\Exports\microgun, layout game folders, list.csv on
+Bulk export finished: 84 written, 0 kept, 0 failed, cancelled False, 0.1 s, list D:\Exports\microgun\list.csv
+Exported 84 of 84 files in 0.1 s
+List of files: D:\Exports\microgun\list.csv
+```
+
+Run it again and it prints `Exported 0 of 84 files; 84 already there (kept)`.
+
+The `voices` command reads the window's voice line cache when it is up to date; otherwise it reads the plugins first, which takes about 30 seconds (as on the window's first start). Don't run it while the window is loading its lines, because both write the same cache.
+
+Press Ctrl+C once to stop after the current file; `list.csv` is still written. Press it a second time to stop at once.
+
+The exit codes, for scripts:
+
+| Code | Meaning |
+|---|---|
+| 0 | Every file was written or kept, or `--list` or `--help` finished. |
+| 1 | Some files failed; the rest were written. The log names each failure. |
+| 2 | The command line was wrong, or a group, plugin or voice type doesn't exist. |
+| 3 | The game's `Data` folder wasn't found. Use `--game`. |
+| 130 | Stopped with Ctrl+C. |
 
 ## Linux
 Extract the Linux zip and run `./StarfieldVT`. Playback uses the system's VLC library, and minimal installs may lack the X11 and font libraries the window needs. On Debian or Ubuntu:
@@ -73,6 +166,10 @@ If a plugin's lines are missing, search the log for `skipped` or `Skipping`. `Pl
 
 If the Sound Effects tab shows fewer sounds than expected, search the log for `Found` (the line `Found N sounds (M from mods ...)`) and, with `--verbose`, for each archive's count; an archive or bank that can't be read is logged with `Could not read archive` or `Could not read bank`.
 
+**Bulk exports need disk space and time.** All 35,491 sounds of a Steam install with Shattered Space and a few Creations take about 42 GB and about 10 minutes; one voice type with 5,000 lines takes about 2 GB and 2 minutes. Use `starfieldvt-export ... --list` first to see the count, and export to a drive with room to spare. If an export fails partway because the drive is full, free some space and run it again: the files already written are kept.
+
+If some files of a bulk export fail, the window's status line and the command's summary give the count, and the log has one `Failed to export` line for each, naming the sound or line and the reason. `Could not write ...list.csv` usually means the file is open in Excel: close it and run the export again. With `--verbose`, the log has one `Wrote` or `Kept` line for every file.
+
 If the voice lines look wrong or stale, use **File** → **Delete Cache**, or delete `%LOCALAPPDATA%\StarfieldVT\cache.json` and the `index` folder.
 
 Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
@@ -82,68 +179,10 @@ The source code in this repository is licensed under the [MIT License](LICENSE).
 
 The release builds bundle third-party libraries, including [Mutagen](https://github.com/Mutagen-Modding/Mutagen), which is licensed under the GPL-3.0. The compiled program as a whole is therefore distributed under the GPL-3.0. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) lists every bundled component with its license and source, and the full license texts are in [licenses](licenses). Both are included in every release zip.
 
-## Changes in 0.9.1
-* The Sound Effects tab also lists sounds stored inside sound bank (`.bnk`) files, not only separate `.wem` files. In the base game that adds 97 sounds (the player character's sprint breathing, in the `VOC` group); mods that keep short sounds in their banks show them too. They play and export like any other sound, and the **Source** column names the bank they're in.
-* Fixed: loading failed with "Mod was both a light and medium master" when any plugin in the load order had both the light (ESL) and the medium flag set in its header, and the message didn't say which plugin. That plugin is now skipped (along with any plugin that needs it), the log names it, and everything else loads. To use the plugin's lines, clear one of the two flags in xEdit or the Creation Kit.
+## Changes in 0.10.0
+* **Bulk export** on both tabs: **Export All Shown (N)**, **Export** with several rows selected (Ctrl+click and Shift+click now work in Voice Lines), the **Keep game folders** and **Write list.csv** check boxes, a progress bar with **Cancel**, and a question with a size estimate before exports of more than 1,000 files. See [Bulk export](#bulk-export). Thanks to MikeyMondavi for the idea.
+* New command-line exporter `starfieldvt-export`, in the same folder as `StarfieldVT.exe`, with the `sounds` and `voices` commands and exit codes for scripts.
+* At `--verbose`, the log has one line per exported file; the converter's step-by-step trace is no longer written.
 * Because the version changed, the voice line cache rebuilds once on first start.
 
-## Changes in 0.9.0
-* New **Sound Effects** tab: browse, search, play and export the game's and your mods' sound effects and music (about 35,000 sounds on a Steam install with Shattered Space and a few Creations). See [Sound effects](#sound-effects). The idea comes from [starfield-wwizard](https://github.com/yak3d/starfield-wwizard) by yak3d, the original author of this tool; this version is written from scratch from the file formats (no code was taken from it) and adds mod sounds, export, events and Linux support.
-* Sounds stored as Wwise PCM (more than half of the sound effects) are now converted too. Voice lines are unchanged: they all use Wwise Vorbis, which goes through the same converter as before.
-* A sound in a format the tool can't convert now gives a message naming the format, instead of a general conversion error.
-* Fixed in the bundled converter (our BnkExtractor fork): Wwise Vorbis sounds with loop points, such as ambient loops and some music, failed with "Could not read full string!", because the converter wrote one of the loop comments in the Ogg header with the wrong length. Voice lines have no loop points and were never affected.
-* Because the version changed, the voice line cache rebuilds once on first start.
-
-## Changes in 0.8.1
-* Fixed: the dialogue filter under the table ignored the voice type filter on the left once a plugin was selected. For example, with `sarahmorgan` on the left, a plugin selected and `weapons` in the dialogue filter, every voice type's "weapons" lines in that plugin were shown. The dialogue filter now searches only the lines the table is showing, so all three narrow together: plugin, voice type filter and dialogue text. The status line says what the table is limited to.
-* New, original program icon: a speech bubble with a sound wave on a starry background. It replaces the face icon inherited from the original tool, whose source was unknown. The icon is drawn from scratch by [`art/make_icon.py`](art/make_icon.py) (no game art) and is covered by this repository's MIT license.
-* The window shows the icon on Linux too (before, only the Windows `.exe` had one).
-* The plugin list on the left can be resized: drag the divider between it and the table. The tool remembers the width.
-* Double-click the divider at the right edge of a column header (Voice Type, Filename, Dialogue) to fit that column to its contents, as in Windows Explorer. A double-click on a header no longer plays the selected line.
-* New **Help** menu: **Open Log Folder**, **Report a Problem…** (opens the GitHub issues page) and **About Starfield Voice Tool**. The About window shows the version, credits and license, links to the project and the third-party notices, the Data folder and settings folder in use, and a **Copy details** button for bug reports. The tool itself still never goes online; links open in your browser.
-* Because the version changed, the voice line cache rebuilds once on first start.
-
-## Changes in 0.8.0
-* Fixed: with a `Plugins.txt` that lists plugins missing from the chosen `Data` folder (a second Starfield install, or a mod manager's load order for another folder), loading failed with "Failed to load voice types" and no lines were shown. Those plugins, and any plugin whose masters are missing, are now skipped and listed in the log.
-* Fixed: mods built on a Creation (for example Terran Armada patches, which need `SFBGS050.esm`) made loading fail the same way, because the game loads Creations from its own catalog rather than `Plugins.txt`. Such masters are now loaded when they are in the `Data` folder, and the log lists them.
-* **Include voices from all mod archives and loose files** is now on by default, and switched on once for existing settings (you can turn it off again). Without it, mods and Creations that pack voices in a ` - Main` archive, such as Astrid and Kinggath's Watchtower, showed no lines.
-* Fixed: each played or exported line left the temporary `.wem` and the Vorbis codebook file open (a bug in the bundled BnkExtractor's ww2ogg port, now fixed in [taosecurity/BnkExtractor](https://github.com/taosecurity/BnkExtractor)). A failed conversion no longer leaves a half-written `.ogg` behind.
-* New command-line options `--verbose` and `--log <file>` for troubleshooting; see [Troubleshooting](#troubleshooting). Voice file conversion errors, which used to go only to a console window, are now in the log, as are unexpected errors that close the tool.
-* The release zips include this README and [AGENTS.md](AGENTS.md).
-
-## Changes in 0.7.0
-* New option **Options** → **Include voices from all mod archives and loose files**: finds mod voices packed in archives without ` - Voices` in the name (for example `MyMod - Main.ba2`) and loose `.wem` files under `Data\Sound\Voice`. Off by default. Turning it on or off rebuilds the cache.
-* Without a `Plugins.txt` (mods copied into `Data` by hand, no mod manager), the tool now reads every plugin in the `Data` folder instead of only the game's built-in ones. Plugins are ordered after their masters; a plugin whose master is missing is skipped and noted in the log.
-
-## Changes in 0.6.3
-Linux fixes, found by testing the Linux build for the first time:
-* The Linux build no longer crashes at startup on systems without libicu, such as minimal Debian or WSL installs.
-* Setting the game path no longer depends on a system folder picker. The dialog lets you type or paste the path, and **Browse…** uses the picker where one exists. Without a picker (no xdg-desktop-portal or GTK), the first-run setup used to wait forever.
-* Native Steam and Proton installs of Starfield are detected automatically on Linux.
-* Playback works with the system VLC from the normal runtime package (`libvlc5`). It previously looked for `libvlc.so`, which only the developer package provides. If VLC is missing, the error now says what to install.
-* Every line plays reliably, short ones included. A long-lived VLC instance went silent after the first sound on some audio setups (seen on WSLg), and short lines could be cut off when playback ended. This affected Windows too, with high-latency audio such as Bluetooth.
-* New [Linux](#linux) section listing the packages to install.
-
-## Changes in 0.6.2
-* **ffmpeg is no longer needed or downloaded.** Voice files are now decoded inside the app ([NVorbis](https://github.com/NVorbis/NVorbis)), which removes the first-start download of a third-party ffmpeg build. The output was checked against ffmpeg's on 300 voice lines from every plugin: identical. A copy downloaded by an earlier version in `%LOCALAPPDATA%\StarfieldVT\ffmpeg` is no longer used and can be deleted.
-* Temporary audio files are deleted right after each conversion (a file handle left open by the ww2ogg converter previously kept them until the next start).
-* Release zips include `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` and a `licenses` folder with the license texts of all bundled components, with links to the exact source of the GPL and LGPL ones.
-* Removed an unused icon library (Projektanker.Icons.Avalonia.FontAwesome).
-
-## Changes in 0.6.1
-* Release zips extract with the app at the top level, instead of inside an `artifacts\<name>` folder.
-* The Linux `StarfieldVT` binary in the release zip is executable again; previously it needed `chmod +x`.
-* The build pipeline uses current GitHub Actions versions.
-
-## Changes in 0.6.0
-* **Export** asks where to save the `.wav`. It used to write into the game's `Data\sound\voice` folder without asking, and crashed if that failed.
-* The game path is set up before loading starts. Previously the first run failed if the game wasn't auto-detected, and changing the path didn't reload anything.
-* The progress bar tracks the real quest count per plugin. It used to say "Loaded" after 100 quests, and stayed visible forever when the cache was used.
-* Fixed a race that could cut off a new line when the previous one finished playing.
-* Typing incomplete search syntax (e.g. a lone `"` or `(`) no longer breaks the filter.
-* Voice archives are chosen by name pattern: English (`_en`) or language-neutral archives only. Before, a mod named like another plugin, or containing "en", could pull in the wrong archives or languages. Voice folders for `.esl` plugins no longer abort loading.
-* Loading is much faster: the voice archives are indexed once instead of once per plugin, lines are no longer copied on every insert, and selecting a large plugin no longer rebuilds lists repeatedly.
-* Playback and export run in the background, so the window doesn't freeze. Temporary audio files are cleaned up.
-* The cache is invalidated when the game files or load order change, not only on a tool update. It's also written atomically.
-* Errors (load failures, playback/export problems, ffmpeg download failures) are shown in the window, not just in the log.
-* Removed dead code and added unit tests for the core parsing, cache and search logic.
+Every earlier version is in [CHANGELOG.md](CHANGELOG.md).
