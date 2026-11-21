@@ -47,8 +47,15 @@ public sealed class VoiceLineTableViewModel : INotifyPropertyChanged
     public ObservableCollection<VoiceLine> VoiceLines
     {
         get => _voiceLines;
-        private set => SetField(ref _voiceLines, value);
+        private set
+        {
+            SetField(ref _voiceLines, value);
+            ExportBar.ShownCount = value.Count;
+        }
     }
+
+    /// <summary>The export bar: Export All Shown, the check boxes, progress and Cancel.</summary>
+    public ExportBarViewModel ExportBar { get; } = new();
 
     private string _voiceLineFilterText = string.Empty;
     public string VoiceLineFilterText

@@ -12,6 +12,7 @@ using Mutagen.Bethesda.Archives;
 using Serilog;
 
 using StarfieldVT.Core;
+using StarfieldVT.Core.Export;
 using StarfieldVT.Core.Models;
 
 using StarfieldVT.UI.Audio;
@@ -89,7 +90,9 @@ public partial class VoiceLineTable : UserControl
         if (HeaderOf(e) != null) return;
 
         var viewModel = ViewModel;
-        var voiceLine = viewModel?.SelectedVoiceLine;
+        // play the row that was double-clicked; with several rows selected, SelectedItem may be another one
+        var voiceLine = (e.Source as Visual)?.FindAncestorOfType<DataGridRow>(includeSelf: true)?.DataContext as VoiceLine
+                        ?? viewModel?.SelectedVoiceLine;
         if (viewModel == null || voiceLine == null) return;
 
         try
@@ -110,13 +113,26 @@ public partial class VoiceLineTable : UserControl
         var viewModel = ViewModel;
         if (viewModel == null) return;
 
-        var voiceLine = viewModel.SelectedVoiceLine;
-        if (voiceLine == null)
+        var lines = DialogueGrid.SelectedItems.OfType<VoiceLine>().ToList();
+        if (lines.Count == 0)
         {
-            viewModel.StatusText = "Select a voice line to export";
+            viewModel.StatusText = "Select one or more voice lines to export";
             return;
         }
 
+        if (ExportBarViewModel.AnyRunning)
+        {
+            viewModel.StatusText = ExportBarViewModel.BusyText;
+            return;
+        }
+
+        if (lines.Count > 1)
+        {
+            await BulkExport(viewModel, lines);
+            return;
+        }
+
+        var voiceLine = lines[0];
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel == null) return;
 
@@ -142,6 +158,39 @@ public partial class VoiceLineTable : UserControl
         catch (Exception ex)
         {
             Log.Error(ex, "Failed to export voice line {Filename}", voiceLine.Filename);
+            viewModel.StatusText = $"Export failed: {ex.Message}";
+        }
+    }
+
+    private async void ExportAllBtn_OnClick(object? sender, RoutedEventArgs e)
+    {
+        var viewModel = ViewModel;
+        if (viewModel == null) return;
+        await BulkExport(viewModel, viewModel.VoiceLines.ToList());
+    }
+
+    private void CancelExportBtn_OnClick(object? sender, RoutedEventArgs e)
+    {
+        var viewModel = ViewModel;
+        if (viewModel == null) return;
+        Log.Information("Export cancel requested");
+        viewModel.StatusText = "Cancelling after the current line...";
+        viewModel.ExportBar.Cancel();
+    }
+
+    /// <summary>Several lines to a folder, through the shared Core exporter (plugin and voice type folders or flat, list.csv).</summary>
+    private async Task BulkExport(VoiceLineTableViewModel viewModel, IReadOnlyList<VoiceLine> lines)
+    {
+        try
+        {
+            await BulkExportFlow.RunAsync(this, viewModel.ExportBar, lines, "voice lines",
+                ExportLayout.ForVoices, ExportLayout.VoiceColumns,
+                (line, path) => AudioConverter.ConvertWemToWav(FindArchiveFile(line).GetBytes(), path),
+                text => viewModel.StatusText = text);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Export failed");
             viewModel.StatusText = $"Export failed: {ex.Message}";
         }
     }

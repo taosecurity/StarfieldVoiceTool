@@ -8,6 +8,7 @@ using Avalonia.VisualTree;
 
 using Serilog;
 
+using StarfieldVT.Core.Export;
 using StarfieldVT.Core.Sounds;
 using StarfieldVT.UI.Audio;
 using StarfieldVT.UI.ViewModel;
@@ -123,6 +124,12 @@ public partial class SoundEffectsView : UserControl
             return;
         }
 
+        if (ExportBarViewModel.AnyRunning)
+        {
+            ViewModel.StatusText = ExportBarViewModel.BusyText;
+            return;
+        }
+
         try
         {
             if (sounds.Count == 1)
@@ -145,45 +152,7 @@ public partial class SoundEffectsView : UserControl
                 return;
             }
 
-            var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = $"Export {sounds.Count} sounds to a folder",
-                AllowMultiple = false,
-            });
-            if (folders.Count == 0) return;
-            var folder = folders[0].TryGetLocalPath()
-                         ?? throw new InvalidOperationException("Please choose a folder on a local drive.");
-
-            var failed = 0;
-            var kept = 0;
-            for (var i = 0; i < sounds.Count; i++)
-            {
-                var sound = sounds[i];
-                ViewModel.StatusText = $"Exporting {i + 1} of {sounds.Count}...";
-                try
-                {
-                    // existing files are kept: a second export of the same sound gets the same name
-                    var wavPath = Path.Combine(folder, SoundCatalog.ExportFileName(sound));
-                    if (File.Exists(wavPath))
-                    {
-                        kept++;
-                        continue;
-                    }
-
-                    await Task.Run(() => Export(sound, wavPath));
-                }
-                catch (Exception ex)
-                {
-                    failed++;
-                    Log.Error(ex, "Failed to export sound {Id} from {Source}", sound.Id, sound.Source);
-                }
-            }
-
-            var written = sounds.Count - failed - kept;
-            var status = $"Exported {written} of {sounds.Count} sounds to {folder}";
-            if (kept > 0) status += $"; {kept} already there (kept)";
-            if (failed > 0) status += $"; {failed} failed (see the log)";
-            ViewModel.StatusText = status;
+            await BulkExport(sounds);
         }
         catch (Exception ex)
         {
@@ -191,6 +160,33 @@ public partial class SoundEffectsView : UserControl
             ViewModel.StatusText = $"Export failed: {ex.Message}";
         }
     }
+
+    private async void ExportAllBtn_OnClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await BulkExport(ViewModel.VisibleSounds);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Export failed");
+            ViewModel.StatusText = $"Export failed: {ex.Message}";
+        }
+    }
+
+    private void CancelExportBtn_OnClick(object? sender, RoutedEventArgs e)
+    {
+        Log.Information("Export cancel requested");
+        ViewModel.StatusText = "Cancelling after the current file...";
+        ViewModel.ExportBar.Cancel();
+    }
+
+    /// <summary>Several sounds to a folder, through the shared Core exporter (game folders or flat, list.csv).</summary>
+    private Task BulkExport(IReadOnlyList<SoundEffect> sounds) =>
+        BulkExportFlow.RunAsync(this, ViewModel.ExportBar, sounds, "sounds",
+            ExportLayout.ForSounds, ExportLayout.SoundColumns,
+            (sound, path) => AudioConverter.ConvertWemToWav(ViewModel.FindFile(sound).GetBytes(), path),
+            text => ViewModel.StatusText = text);
 
     private void Export(SoundEffect sound, string wavPath)
     {

@@ -12,12 +12,13 @@
             <RowDefinition />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <DataGrid Grid.Row="0" Grid.Column="0" IsReadOnly="True" AutoGenerateColumns="False"
                   Name="DialogueGrid" ItemsSource="{Binding VoiceLines}"
                   SelectedItem="{Binding SelectedVoiceLine}"
                   DoubleTapped="DialogueGrid_OnDoubleTapped"
-                  SelectionMode="Single"
+                  SelectionMode="Extended"
                   CanUserResizeColumns="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Voice Type" Binding="{Binding VoiceType}" Width="120" />
@@ -36,9 +37,30 @@
                      Watermark="Search dialogue text, e.g. &quot;good to see you&quot; or capt*"
                      ToolTip.Tip="Searches the lines in the table: the selected plugin or voice type, the voice types matching the filter on the left, or every plugin when the table is empty"
                      Text="{Binding VoiceLineFilterText}" />
-            <Button Grid.Column="2" Name="ExportBtn" Margin="10, 5" Content="Export"
-                    Click="ExportBtn_OnClick" />
         </Grid>
-        <TextBlock Grid.Row="2" Margin="5,0,5,5" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
+        <Grid Grid.Row="2" DataContext="{Binding ExportBar}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="5,0,0,5">
+                <CheckBox Content="Keep game folders" IsChecked="{Binding KeepFolders, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                          ToolTip.Tip="On: Plugin\VoiceType\... folders. Off: every file in one folder" />
+                <CheckBox Margin="15,0,0,0" Content="Write list.csv" IsChecked="{Binding WriteCsv, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                          ToolTip.Tip="Also write list.csv in the export folder: each file with its plugin, voice type, game file and dialogue" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding IsIdle}">
+                <Button Name="ExportBtn" Margin="5,0,0,5" Content="Export" Click="ExportBtn_OnClick"
+                        ToolTip.Tip="Save the selected line as a .wav; with several selected (Ctrl+click or Shift+click), choose a folder" />
+                <Button Margin="5,0,10,5" Content="{Binding AllShownText}" Click="ExportAllBtn_OnClick"
+                        ToolTip.Tip="Export every line the table shows (the plugin or voice type and the filter) to a folder" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding IsExporting}">
+                <ProgressBar Margin="5,0,0,5" Width="220" Minimum="0" Maximum="{Binding Total}" Value="{Binding Done}" />
+                <Button Margin="5,0,10,5" Content="Cancel" Click="CancelExportBtn_OnClick"
+                        ToolTip.Tip="Stop the export after the current file; list.csv lists what was written" />
+            </StackPanel>
+        </Grid>
+        <TextBlock Grid.Row="3" Margin="5,0,5,5" Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
     </Grid>
 </UserControl>

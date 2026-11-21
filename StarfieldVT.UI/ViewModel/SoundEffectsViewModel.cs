@@ -45,8 +45,11 @@ public sealed class SoundEffectsViewModel : INotifyPropertyChanged
     public List<SoundEffect> VisibleSounds
     {
         get => _visibleSounds;
-        private set { _visibleSounds = value; OnPropertyChanged(); }
+        private set { _visibleSounds = value; OnPropertyChanged(); ExportBar.ShownCount = value.Count; }
     }
+
+    /// <summary>The export bar: Export All Shown, the check boxes, progress and Cancel.</summary>
+    public ExportBarViewModel ExportBar { get; } = new();
 
     private string _statusText = "Open this tab to list the game's sound effects.";
     public string StatusText

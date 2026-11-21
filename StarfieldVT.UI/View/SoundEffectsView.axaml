@@ -12,14 +12,15 @@
             <RowDefinition />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ListBox Grid.Row="0" Grid.Column="0" Grid.RowSpan="2" Name="GroupList"
+        <ListBox Grid.Row="0" Grid.Column="0" Grid.RowSpan="3" Name="GroupList"
                  ItemsSource="{Binding Groups}"
                  SelectedItem="{Binding SelectedGroup, Mode=TwoWay}"
                  ToolTip.Tip="Base game sounds by their Wwise folder (AMB = ambience, WPN = weapons, MUS = music, ...), then each mod's sounds" />
 
-        <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Width="6"
+        <GridSplitter Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Width="6"
                       ResizeDirection="Columns" Background="#30808080"
                       ToolTip.Tip="Drag to resize the group list" />
 
@@ -56,14 +57,36 @@
                 <Button Margin="5,5,0,5" Content="&#x23F9;" Width="30" Click="StopBtn_OnClick" ToolTip.Tip="Stop playback" />
                 <Button Margin="5,5,0,5" Content="Copy ID" Click="CopyIdBtn_OnClick"
                         ToolTip.Tip="Copy the selected sounds' IDs (one per line) to the clipboard" />
-                <Button Margin="5,5,0,5" Content="Copy Events" Click="CopyEventsBtn_OnClick"
+                <Button Margin="5,5,10,5" Content="Copy Events" Click="CopyEventsBtn_OnClick"
                         ToolTip.Tip="Copy the event names that play the selected sounds to the clipboard" />
-                <Button Margin="5,5,10,5" Content="Export" Click="ExportBtn_OnClick"
-                        ToolTip.Tip="Save the selected sound as a .wav; with several selected, choose a folder" />
             </StackPanel>
         </Grid>
 
-        <TextBlock Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Margin="5,0,5,5"
+        <Grid Grid.Row="2" Grid.Column="2" DataContext="{Binding ExportBar}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="5,0,0,5">
+                <CheckBox Content="Keep game folders" IsChecked="{Binding KeepFolders, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                          ToolTip.Tip="On: WPN\Hand\Microgun\... as the game groups them. Off: every file in one folder" />
+                <CheckBox Margin="15,0,0,0" Content="Write list.csv" IsChecked="{Binding WriteCsv, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                          ToolTip.Tip="Also write list.csv in the export folder: each file with its ID, name, events and source" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding IsIdle}">
+                <Button Margin="5,0,0,5" Content="Export" Click="ExportBtn_OnClick"
+                        ToolTip.Tip="Save the selected sound as a .wav; with several selected, choose a folder" />
+                <Button Margin="5,0,10,5" Content="{Binding AllShownText}" Click="ExportAllBtn_OnClick"
+                        ToolTip.Tip="Export every sound the table shows (the group on the left and the search) to a folder" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" IsVisible="{Binding IsExporting}">
+                <ProgressBar Margin="5,0,0,5" Width="220" Minimum="0" Maximum="{Binding Total}" Value="{Binding Done}" />
+                <Button Margin="5,0,10,5" Content="Cancel" Click="CancelExportBtn_OnClick"
+                        ToolTip.Tip="Stop the export after the current file; list.csv lists what was written" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Margin="5,0,5,5"
                    Text="{Binding StatusText}" TextTrimming="CharacterEllipsis" />
     </Grid>
 </UserControl>

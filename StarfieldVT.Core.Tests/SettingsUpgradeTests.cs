@@ -32,4 +32,26 @@ public class SettingsUpgradeTests
         Assert.False(current.Upgrade());
         Assert.False(current.IncludeAllModVoices);
     }
+
+    [Fact]
+    public void SettingsFromBefore0100TurnBothExportBoxesOn()
+    {
+        // what 0.9.1 wrote: version 2, no export settings; no version bump is needed for them
+        var old = JsonSerializer.Deserialize<AppSettings>(
+            "{\"IncludeAllModVoices\":true,\"SoundGroupListWidth\":240,\"SettingsVersion\":2}")!;
+
+        Assert.False(old.Upgrade());
+        Assert.True(old.ExportKeepFolders);
+        Assert.True(old.ExportWriteCsv);
+    }
+
+    [Fact]
+    public void ExportBoxesAreRemembered()
+    {
+        var json = JsonSerializer.Serialize(new AppSettings { ExportKeepFolders = false, ExportWriteCsv = false });
+        var back = JsonSerializer.Deserialize<AppSettings>(json)!;
+
+        Assert.False(back.ExportKeepFolders);
+        Assert.False(back.ExportWriteCsv);
+    }
 }

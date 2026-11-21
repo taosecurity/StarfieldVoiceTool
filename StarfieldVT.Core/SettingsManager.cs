@@ -27,6 +27,12 @@ public class AppSettings
     /// <summary>Width in pixels of the group list on the Sound Effects tab; null = default.</summary>
     public double? SoundGroupListWidth { get; set; }
 
+    /// <summary>Bulk exports keep the game's folders (on) or write one flat folder (off). Since 0.10.0; shared by both tabs.</summary>
+    public bool ExportKeepFolders { get; set; } = true;
+
+    /// <summary>Bulk exports write list.csv. Since 0.10.0; shared by both tabs.</summary>
+    public bool ExportWriteCsv { get; set; } = true;
+
     /// <summary>Settings format version; files from before 0.8.0 have none (0).</summary>
     public int SettingsVersion { get; set; }
 
@@ -107,6 +113,28 @@ public class SettingsManager
         set
         {
             _settings.SoundGroupListWidth = value;
+            Save();
+        }
+    }
+
+    public bool ExportKeepFolders
+    {
+        get => _settings.ExportKeepFolders;
+        set
+        {
+            if (_settings.ExportKeepFolders == value) return;
+            _settings.ExportKeepFolders = value;
+            Save();
+        }
+    }
+
+    public bool ExportWriteCsv
+    {
+        get => _settings.ExportWriteCsv;
+        set
+        {
+            if (_settings.ExportWriteCsv == value) return;
+            _settings.ExportWriteCsv = value;
             Save();
         }
     }
