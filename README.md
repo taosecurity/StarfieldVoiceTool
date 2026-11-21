@@ -94,7 +94,7 @@ The command (`sounds` or `voices`) comes first. The options:
 | Option | What it does |
 |---|---|
 | `--out <folder>` | Where the `.wav` files go. The folder is created if it is missing. Not needed with `--list`. |
-| `--group <name>` | Sounds only: one group (`AMB`, `WPN`, `MUS`, ...) or a mod's archive name, as on the left of the Sound Effects tab. |
+| `--group <name>` | Sounds only: one group (`AMB`, `WPN`, `MUS`, ...) or a mod's archive name (such as `"ShatteredSpace - Main01.ba2"`), as on the left of the Sound Effects tab. A group such as `WPN` holds only the base game's sounds; sounds from DLC, Creation and mod archives are in their archive's group. |
 | `--plugin <file>` | Voices only: one plugin, such as `Starfield.esm`. |
 | `--voice-type <id>` | Voices only: one voice type, such as `NPCFSarahMorgan`. |
 | `--search <text>` | The same search as the tab's search or filter box. |

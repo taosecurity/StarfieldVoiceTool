@@ -113,7 +113,7 @@ Command-line options:
 
 Unknown options are ignored and noted in the log.
 
-`starfieldvt-export` options: the command `sounds` or `voices` first, then `--out <folder>` (not needed with `--list`), `--group <name>` (sounds), `--plugin <file>` and `--voice-type <id>` (voices), `--search <text>`, `--flat`, `--no-csv`, `--list`, `--game <Data folder>`, `--verbose`/`-v`, `--log <file>`, `--help`/`-h`. Values may follow as the next argument or after `=`. Unknown options are errors (exit 2). Without `--game`, it uses the game path the window saved, then the Steam or Xbox lookup, and it never saves settings. `voices` uses the window's voice cache when it is current, otherwise it reads the plugins (about 30 seconds) and writes that shared cache; don't run it while the window is loading.
+`starfieldvt-export` options: the command `sounds` or `voices` first, then `--out <folder>` (not needed with `--list`), `--group <name>` (sounds: a base-game group such as `WPN`, which leaves out DLC, Creation and mod sounds, or an archive name such as `"ShatteredSpace - Main01.ba2"` for those), `--plugin <file>` and `--voice-type <id>` (voices), `--search <text>`, `--flat`, `--no-csv`, `--list`, `--game <Data folder>`, `--verbose`/`-v`, `--log <file>`, `--help`/`-h`. Values may follow as the next argument or after `=`. Unknown options are errors (exit 2). Without `--game`, it uses the game path the window saved, then the Steam or Xbox lookup, and it never saves settings. `voices` uses the window's voice cache when it is current, otherwise it reads the plugins (about 30 seconds) and writes that shared cache; don't run it while the window is loading.
 
 `starfieldvt-export` exit codes:
 
