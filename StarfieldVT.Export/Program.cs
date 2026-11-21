@@ -410,8 +410,7 @@ public static class Program
             }
 
             if (items.Count > ListRows) Console.WriteLine($"  ... and {items.Count - ListRows:N0} more");
-            var failing = planned.Count(p => p.Problem != null);
-            if (failing > 0) Console.WriteLine($"{failing:N0} of them would fail; each one's reason follows WILL FAIL in the list (only the first {ListRows} rows are shown).");
+            foreach (var line in PlannedPathReport.FailureLines(planned, ListRows)) Console.WriteLine(line);
             return ExportOptions.ExitOk;
         }
 

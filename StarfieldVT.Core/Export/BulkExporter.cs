@@ -247,7 +247,18 @@ public static class BulkExporter
     /// </summary>
     public static List<PlannedPath<T>> PlannedPaths<T>(IReadOnlyList<ExportItem<T>> items, string outFolder, IReadOnlyList<string>? csvHeader)
     {
-        var root = Path.GetFullPath(outFolder);
+        string root;
+        try
+        {
+            root = Path.GetFullPath(outFolder);
+        }
+        catch (Exception ex)
+        {
+            // a folder name Windows can't take: every item would fail with this message
+            var problem = $"The export folder {outFolder} can't be used ({ex.Message}); choose another --out folder.";
+            return items.Select(i => new PlannedPath<T>(i, problem)).ToList();
+        }
+
         // with no list.csv, or no folder yet, nothing is renamed, but a path the folder can't hold still fails
         var plan = csvHeader == null || !Directory.Exists(root) ? null : PathPlan.For(root, csvHeader, items, null);
         return items.Select(i =>
@@ -280,7 +291,7 @@ public static class BulkExporter
         private readonly Dictionary<string, List<string>> _owners;
         private readonly Dictionary<string, HashSet<string>> _listedFor;
         private readonly HashSet<string> _layoutPaths;
-        private readonly HashSet<string> _renamed = new(StringComparer.OrdinalIgnoreCase); // hashed names handed out in this run
+        private readonly HashSet<string> _claimed = new(StringComparer.OrdinalIgnoreCase); // every path an item of this run took, first paths too
 
         private PathPlan(string root, int[] identity, Dictionary<string, List<string>> owners, HashSet<string> layoutPaths)
         {
@@ -315,7 +326,8 @@ public static class BulkExporter
         /// whose file is still there) <c>&lt;name&gt;_&lt;hash&gt;.wav</c>, then <c>_2</c> ... A new hashed
         /// name skips the paths other items of this run use. An item's own earlier file is kept even
         /// when it sits on another item's layout path (that item moves instead, since the earlier list
-        /// shows the file as this item's), so no item is ever exported twice. Throws when no free name
+        /// shows the file as this item's), so no item is ever exported twice, unless another item of
+        /// this run already took that path (its file is then that item's). Throws when no free name
         /// is left, so another item's file is never kept.
         /// </summary>
         public ExportItem<T> OwnPath<T>(ExportItem<T> original, bool warn)
@@ -333,7 +345,8 @@ public static class BulkExporter
                 {
                     var n = CandidateIndex(path, first, hash);
                     if (n < 0 || (best >= 0 && n >= best)) continue;
-                    if ((n == 0 || !_renamed.Contains(path)) && Exists(path)) best = n;
+                    // a path another item of this run already took holds that item's file now, not this one's
+                    if (!_claimed.Contains(path) && Exists(path)) best = n;
                 }
 
                 if (best >= 0) return Claim(original, Candidate(best), best, warn, kept: true);
@@ -343,7 +356,7 @@ public static class BulkExporter
             for (var n = 0; n <= MaxRenames; n++)
             {
                 var path = Candidate(n);
-                if (n > 0 && (_layoutPaths.Contains(path) || _renamed.Contains(path))) continue;
+                if (_claimed.Contains(path) || (n > 0 && _layoutPaths.Contains(path))) continue;
                 if (!_owners.TryGetValue(path, out var owner) || SameItem(owner, original) || !Exists(path))
                 {
                     return Claim(original, path, n, warn, kept: false);
@@ -356,8 +369,8 @@ public static class BulkExporter
 
         private ExportItem<T> Claim<T>(ExportItem<T> original, string path, int n, bool warn, bool kept)
         {
+            _claimed.Add(path);
             if (n == 0) return original;
-            _renamed.Add(path);
             if (warn)
             {
                 if (kept)

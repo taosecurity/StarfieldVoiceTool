@@ -13,6 +13,34 @@ public sealed record ExportItem<T>(string RelativePath, IReadOnlyList<string> Cs
 /// <summary>The path a run would give an item (for --list); Problem says why the run would fail it, or is null.</summary>
 public sealed record PlannedPath<T>(ExportItem<T> Item, string? Problem);
 
+/// <summary>The lines --list prints after its first rows about the items that would fail.</summary>
+public static class PlannedPathReport
+{
+    /// <summary>
+    /// Failing items below the first <paramref name="shown"/> rows (at most <paramref name="shown"/> of
+    /// them, each with its WILL FAIL reason), then one closing line; nothing when no item would fail.
+    /// </summary>
+    public static List<string> FailureLines<T>(IReadOnlyList<PlannedPath<T>> planned, int shown)
+    {
+        var lines = new List<string>();
+        var failing = planned.Count(p => p.Problem != null);
+        if (failing == 0) return lines;
+
+        var below = planned.Skip(shown).Where(p => p.Problem != null).ToList();
+        if (below.Count > 0)
+        {
+            lines.Add($"Items below the first {shown} rows that would fail:");
+            lines.AddRange(below.Take(shown).Select(p => $"  {p.Item.RelativePath}  ({p.Item.Description}) WILL FAIL: {p.Problem}"));
+            if (below.Count > shown) lines.Add($"  ... and {below.Count - shown:N0} more that would fail");
+        }
+
+        lines.Add(below.Count > shown
+            ? $"{failing:N0} of them would fail; the reasons of the ones shown follow WILL FAIL above. Narrow the options (--group, --plugin or --search) to see the rest."
+            : $"{failing:N0} of them would fail; each one's reason follows WILL FAIL above.");
+        return lines;
+    }
+}
+
 /// <summary>Progress after each file: how many are done out of the total, and the last file's path.</summary>
 public sealed record ExportProgress(int Done, int Total, string RelativePath);
 

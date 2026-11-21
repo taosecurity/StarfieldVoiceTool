@@ -666,6 +666,66 @@ public class ExportTests : IDisposable
     }
 
     [Fact]
+    public void AnEarlierHashedFileIsNotKeptWhenAnotherItemWroteThatPathEarlierInTheRun()
+    {
+        var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false)[0];
+        BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
+        BulkExporter.Run([b], _dir, VoiceCsv, VoiceConvert);
+        var hash = ExportLayout.StableHash(b.Description);
+        var moved = ExportLayout.WithSuffix(b.RelativePath, hash);
+        var second = ExportLayout.WithSuffix(b.RelativePath, hash + "_2");
+        File.Delete(Path.Combine(_dir, moved)); // B's file is gone; list.csv still lists B there
+
+        // C, whose own path is B's earlier hashed name, comes first and writes its file there
+        var c = ExportLayout.ForVoices([Voice("sound/voice/y/other/0002.wem", plugin: "ModC.esm")], keepFolders: false)[0] with { RelativePath = moved };
+        List<ExportItem<VoiceLine>> items = [c, b];
+        Assert.Equal([moved, second], BulkExporter.PlannedPaths(items, _dir, ExportLayout.VoiceColumns).Select(p => p.Item.RelativePath));
+
+        var summary = BulkExporter.Run(items, _dir, VoiceCsv, VoiceConvert);
+        Assert.Equal((2, 0, 0), (summary.Written, summary.Kept, summary.Failed));
+        Assert.Equal("RIFF ModC.esm", File.ReadAllText(Path.Combine(_dir, moved)));
+        Assert.Equal("RIFF ModB.esm", File.ReadAllText(Path.Combine(_dir, second)));
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!)).Skip(1).ToList();
+        Assert.Equal(3, rows.Count);
+        Assert.Equal(3, rows.Select(r => r[0]).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(second, Assert.Single(rows, r => r[1] == "ModB.esm")[0]);
+        Assert.Equal(moved, Assert.Single(rows, r => r[1] == "ModC.esm")[0]);
+    }
+
+    [Fact]
+    public void PlannedPathsMarkEveryItemWhenTheFolderNameCantBeUsed()
+    {
+        var a = ExportLayout.ForVoices([Voice("a/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var planned = BulkExporter.PlannedPaths(a, "bad\0name", null);
+        Assert.Contains("can't be used", Assert.Single(planned).Problem);
+        Assert.NotNull(BulkExporter.PlannedPaths(a, "bad\0name", ExportLayout.VoiceColumns)[0].Problem);
+    }
+
+    [Fact]
+    public void TheListFailureLinesShowFailingItemsBelowTheShownRows()
+    {
+        var items = Enumerable.Range(1, 10)
+            .Select(n => new PlannedPath<int>(new ExportItem<int>($"f{n}.wav", [], n, $"item {n}"), n is 2 or 6 or 7 or 9 ? "no room" : null))
+            .ToList();
+
+        Assert.Empty(PlannedPathReport.FailureLines(items.Where(p => p.Problem == null).ToList(), 3));
+
+        // the first 3 rows are shown; 6, 7 and 9 are below them, and only 3 of those fit
+        var lines = PlannedPathReport.FailureLines(items, 3);
+        Assert.Equal("Items below the first 3 rows that would fail:", lines[0]);
+        Assert.Equal(["  f6.wav  (item 6) WILL FAIL: no room", "  f7.wav  (item 7) WILL FAIL: no room", "  f9.wav  (item 9) WILL FAIL: no room"], lines[1..4]);
+        Assert.Equal("4 of them would fail; each one's reason follows WILL FAIL above.", lines[^1]);
+
+        var tight = PlannedPathReport.FailureLines(items, 2); // 6, 7 and 9 below; 2 fit
+        Assert.Equal("  ... and 1 more that would fail", tight[^2]);
+        Assert.StartsWith("4 of them would fail; the reasons of the ones shown", tight[^1]);
+
+        var allShown = PlannedPathReport.FailureLines(items, 10);
+        Assert.Equal(["4 of them would fail; each one's reason follows WILL FAIL above."], allShown);
+    }
+
+    [Fact]
     public void ANameFarDownTheHashedListIsStillFoundAsTheItemsOwn()
     {
         var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
