@@ -66,8 +66,7 @@ public static class SoundCatalog
     /// <summary>"&lt;Name&gt;_&lt;Id&gt;.wav", with characters Windows doesn't allow in file names replaced.</summary>
     public static string ExportFileName(SoundEffect sound)
     {
-        var invalid = Path.GetInvalidFileNameChars().Concat(['<', '>', ':', '"', '/', '\\', '|', '?', '*']).ToHashSet();
-        var name = new string(sound.Name.Select(c => invalid.Contains(c) || char.IsControl(c) ? '_' : c).ToArray()).Trim(' ', '.');
+        var name = Export.ExportLayout.CleanName(sound.Name);
         var id = sound.Id.ToString(CultureInfo.InvariantCulture);
         return name.Length == 0 || name == id ? $"{id}.wav" : $"{name}_{id}.wav";
     }
