@@ -164,7 +164,22 @@ public class ExportTests : IDisposable
         var root = Path.GetPathRoot(Path.GetFullPath(_dir))!;
         Assert.Equal(Path.Combine(root, "WPN", "a.wav"), ExportLayout.ResolveInside(root, P("WPN", "a.wav")));
         Assert.Equal(Path.Combine(root, "a.wav"), ExportLayout.ResolveInside(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "a.wav"));
-        Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, Path.Combine("Z:" + Path.DirectorySeparatorChar, "a.wav")));
+        // a rooted path is refused even when the export folder is a drive root
+        // ("Z:/a.wav" is an ordinary relative file name on Linux, so each OS gets its own rooted path)
+        var rooted = OperatingSystem.IsWindows() ? @"Z:\a.wav" : "/a.wav";
+        Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, rooted));
+    }
+
+    [Fact]
+    public void ColonNameStaysInsideOnLinux()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return; // "Z:" is a drive on Windows; the test above covers it
+        }
+
+        var root = Path.GetPathRoot(Path.GetFullPath(_dir))!;
+        Assert.Equal(Path.Combine(root, "Z:", "a.wav"), ExportLayout.ResolveInside(root, "Z:/a.wav"));
     }
 
     [Theory]
