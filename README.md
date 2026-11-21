@@ -84,7 +84,7 @@ An export into a folder that already has a `list.csv` from an earlier export of 
 
 The columns of `list.csv` (UTF-8, so Excel shows accented names correctly):
 
-* Sounds: **File** (the path below the export folder), **ID**, **Name**, **Group**, **Folder**, **Events**, **Bank**, **Source** and **Replaces**, as on the Sound Effects tab. **Group** is the group the sound is listed under on the left of the tab: the Wwise group (such as `WPN`) for a base game sound, and **Mod: <archive>** (such as `Mod: ShatteredSpace - Main01.ba2`) for a sound from a DLC, Creation or mod archive, so the rows split the same way `--group` does (`--group` takes the archive name without `Mod: `). With **Keep game folders**, the file itself still goes under its Wwise folder (such as `WPN\...`). Several events or replaced archives are joined with `; `.
+* Sounds: **File** (the path below the export folder), **ID**, **Name**, **Group**, **Wwise Group**, **Folder**, **Events**, **Bank**, **Source** and **Replaces**, as on the Sound Effects tab. **Group** is the group the sound is listed under on the left of the tab: the Wwise group (such as `WPN`) for a base game sound, and **Mod: <archive>** (such as `Mod: ShatteredSpace - Main01.ba2`) for a sound from a DLC, Creation or mod archive, so the rows split the same way `--group` does (a Group value works as a `--group` value). **Wwise Group** is always the sound's first Wwise folder (such as `WPN`), as in the tab's Group column; with **Keep game folders**, the file goes under that folder. Several events or replaced archives are joined with `; `.
 * Voice lines: **File**, **Plugin**, **Voice Type**, **Game File** (the voice file's path in the game) and **Dialogue**.
 
 A cell that starts with `=`, `+`, `-` or `@` (for example the dialogue "- Wait, don't go!") gets an apostrophe in front, so that Excel shows it as text instead of running it as a formula. A cell that already starts with an apostrophe gets a second one, so the tool reads the list back exactly. The **File** column never needs one, so it always matches the file on disk.
@@ -102,7 +102,7 @@ The command (`sounds` or `voices`) comes first. The options:
 | Option | What it does |
 |---|---|
 | `--out <folder>` | Where the `.wav` files go. The folder is created if it is missing. Not needed with `--list`. |
-| `--group <name>` | Sounds only: one group (`AMB`, `WPN`, `MUS`, ...) or a mod's archive name (such as `"ShatteredSpace - Main01.ba2"`), as on the left of the Sound Effects tab. A group such as `WPN` holds only the base game's sounds; sounds from DLC, Creation and mod archives are in their archive's group. |
+| `--group <name>` | Sounds only: one group (`AMB`, `WPN`, `MUS`, ...) or a mod's archive name (such as `"ShatteredSpace - Main01.ba2"`), as on the left of the Sound Effects tab. A group such as `WPN` holds only the base game's sounds; sounds from DLC, Creation and mod archives are in their archive's group. The archive name may also start with `Mod: `, as in list.csv's Group column. |
 | `--plugin <file>` | Voices only: one plugin, such as `Starfield.esm`. |
 | `--voice-type <id>` | Voices only: one voice type, such as `NPCFSarahMorgan`. |
 | `--search <text>` | The same search as the tab's search or filter box. |

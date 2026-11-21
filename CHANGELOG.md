@@ -27,7 +27,7 @@ List of files: D:\Exports\microgun\list.csv
 - **Export All Shown (N)** on the Voice Lines and Sound Effects tabs exports every row the table shows to a folder you choose.
 - **Export** with several rows selected exports them the same way. In Voice Lines you can now select several lines with Ctrl+click and Shift+click; a double-click still plays the line you clicked.
 - **Keep game folders** (on by default) writes sounds as `WPN\Hand\Microgun\<Name>_<ID>.wav` and voice lines as `<Plugin>\<Voice type>\<Voice type>_<file>.wav`. Off, every file goes into one folder.
-- **Write list.csv** (on by default) writes `list.csv` in the export folder, with one row per file. Both check boxes are remembered.
+- **Write list.csv** (on by default) writes `list.csv` in the export folder, with one row per file. For sounds, its **Group** column is the group on the left of the tab (**Mod: <archive>** for DLC, Creation and mod sounds), and **Wwise Group** is the sound's Wwise folder group. Both check boxes are remembered.
 - A progress bar and a **Cancel** button show during an export. Cancel stops after the current file, and `list.csv` lists what was written.
 - An export of more than 1,000 files first writes 50 of them, then asks before going on, with a size estimate and the drive's free space.
 - Files that are already in the export folder are kept, so running the same export again only adds what is missing.

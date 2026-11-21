@@ -41,6 +41,19 @@ public static class SoundCatalog
     /// </summary>
     public static string GroupLabel(SoundEffect sound) => sound.FromMod ? $"Mod: {sound.Source}" : sound.Group;
 
+    /// <summary>
+    /// The entry of <paramref name="groups"/> that a --group value names: a base game group (WPN), or a mod
+    /// archive by its name, with or without the "Mod: " that list.csv's Group column puts in front. Null if none.
+    /// </summary>
+    public static SoundGroup? FindGroup(IEnumerable<SoundGroup> groups, string name)
+    {
+        const string modPrefix = "Mod: ";
+        var archive = name.StartsWith(modPrefix, StringComparison.OrdinalIgnoreCase) ? name[modPrefix.Length..].Trim() : name;
+        return groups.FirstOrDefault(g =>
+            string.Equals(g.Group, name, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(g.ModSource, archive, StringComparison.OrdinalIgnoreCase));
+    }
+
     /// <summary>Split a search into words; a sound must match every word.</summary>
     public static string[] Terms(string? search) =>
         (search ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

@@ -14,7 +14,7 @@ public static class ExportLayout
 {
     /// <summary>The list.csv columns for sounds (File first).</summary>
     public static readonly IReadOnlyList<string> SoundColumns =
-        ["File", "ID", "Name", "Group", "Folder", "Events", "Bank", "Source", "Replaces"];
+        ["File", "ID", "Name", "Group", "Wwise Group", "Folder", "Events", "Bank", "Source", "Replaces"];
 
     /// <summary>The list.csv columns for voice lines (File first).</summary>
     public static readonly IReadOnlyList<string> VoiceColumns =
@@ -130,6 +130,7 @@ public static class ExportLayout
                 sound.Id.ToString(CultureInfo.InvariantCulture),
                 sound.Name,
                 SoundCatalog.GroupLabel(sound),
+                sound.Group,
                 sound.Folder,
                 string.Join("; ", sound.Events),
                 sound.Bank ?? "",

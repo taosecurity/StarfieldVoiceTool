@@ -48,6 +48,15 @@ public class ExportTests : IDisposable
         Assert.Equal(["WPN (1)", "Mod: ShatteredSpace - Main01.ba2 (1)"], labels);
         Assert.Equal("WPN", items[0].CsvRow[2]);
         Assert.Equal("Mod: ShatteredSpace - Main01.ba2", items[1].CsvRow[2]);
+        Assert.Equal(["WPN", "WPN"], items.Select(i => i.CsvRow[3])); // Wwise Group keeps the folder group
+        Assert.Equal("Wwise Group", ExportLayout.SoundColumns[4]);
+
+        // A Group value from list.csv works as --group, with or without "Mod: ".
+        var groups = SoundCatalog.Groups([game, dlc]);
+        Assert.Equal("ShatteredSpace - Main01.ba2", SoundCatalog.FindGroup(groups, "Mod: ShatteredSpace - Main01.ba2")?.ModSource);
+        Assert.Equal("ShatteredSpace - Main01.ba2", SoundCatalog.FindGroup(groups, "shatteredspace - main01.ba2")?.ModSource);
+        Assert.Equal("WPN", SoundCatalog.FindGroup(groups, "wpn")?.Group);
+        Assert.Null(SoundCatalog.FindGroup(groups, "Mod: WPN"));
         // The file still goes under its Wwise folder, as the game lays it out.
         Assert.Equal(P("WPN", "Hand", "B_2.wav"), items[1].RelativePath);
     }
@@ -218,7 +227,7 @@ public class ExportTests : IDisposable
         sound.Source = "Mod.ba2";
         var item = ExportLayout.ForSounds([sound], keepFolders: true)[0];
         Assert.Equal(ExportLayout.SoundColumns.Count, item.CsvRow.Count + 1);
-        Assert.Equal(["7", "MUS_A", "MUS", "Lounge", "MUS_X; MUS_Y", "Starfield_MUS", "Mod.ba2", "Starfield - WwiseSounds01.ba2"], item.CsvRow);
+        Assert.Equal(["7", "MUS_A", "MUS", "MUS", "Lounge", "MUS_X; MUS_Y", "Starfield_MUS", "Mod.ba2", "Starfield - WwiseSounds01.ba2"], item.CsvRow);
     }
 
     // ---------- CSV ----------
@@ -297,7 +306,7 @@ public class ExportTests : IDisposable
         var lines = File.ReadAllLines(summary.CsvPath!);
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("File,ID,Name,Group", lines[0].TrimStart('\uFEFF'));
-        Assert.StartsWith(P("WPN", "Hand", "A_1.wav") + ",1,A,WPN,Hand", lines[1]);
+        Assert.StartsWith(P("WPN", "Hand", "A_1.wav") + ",1,A,WPN,WPN,Hand", lines[1]);
         Assert.Empty(Directory.GetFiles(_dir, "*" + BulkExporter.PartialSuffix, SearchOption.AllDirectories));
     }
 
@@ -407,7 +416,7 @@ public class ExportTests : IDisposable
         var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!));
         Assert.Equal(["File", .. ExportLayout.SoundColumns.Skip(1)], rows[0]);
         Assert.Equal(["A_1.wav", "B_2.wav", "C_3.wav", "D_4.wav"], rows.Skip(1).Select(r => r[0]));
-        Assert.Equal("Changed", rows[2][4]); // this run's row replaces the earlier one for the same file
+        Assert.Equal("Changed", rows[2][5]); // this run's row replaces the earlier one for the same file
     }
 
     [Fact]
@@ -861,7 +870,7 @@ public class ExportTests : IDisposable
     [Fact]
     public void IdentityColumnsNameTheItem()
     {
-        Assert.Equal([1, 7], ExportLayout.IdentityColumns(ExportLayout.SoundColumns));
+        Assert.Equal([1, 8], ExportLayout.IdentityColumns(ExportLayout.SoundColumns));
         Assert.Equal([1, 3], ExportLayout.IdentityColumns(ExportLayout.VoiceColumns));
         Assert.Equal([1, 2], ExportLayout.IdentityColumns(["File", "X", "Y"]));
     }

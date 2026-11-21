@@ -172,9 +172,7 @@ public static class Program
         if (options.Group != null)
         {
             var groups = SoundCatalog.Groups(index.Sounds);
-            var group = groups.FirstOrDefault(g =>
-                string.Equals(g.Group, options.Group, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(g.ModSource, options.Group, StringComparison.OrdinalIgnoreCase));
+            var group = SoundCatalog.FindGroup(groups, options.Group);
             if (group == null)
             {
                 Log.Error("No sound group or mod archive is called \"{Group}\". The groups are: {Groups}. Mod archives: {Mods}",
