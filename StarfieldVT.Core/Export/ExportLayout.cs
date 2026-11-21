@@ -86,12 +86,18 @@ public static class ExportLayout
             throw new InvalidOperationException($"The export path \"{relativePath}\" is not relative to the export folder.");
         }
 
+        // No ".." segment at all: whether "../OUT" is the export folder or a sibling depends on the
+        // file system's case rules (Linux, WSL folders), so climbing up is refused outright.
+        if (relativePath.Split('/', '\\').Any(part => part == ".."))
+        {
+            throw new InvalidOperationException(
+                $"The export path \"{relativePath}\" uses \"..\", which could write outside the export folder {fullRoot}.");
+        }
+
         var full = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
         // a drive root such as "D:\" keeps its separator after the trim
         var prefix = Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
-        // Linux file names are case-sensitive, so "/tmp/OUT" is a different folder from "/tmp/out"
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        if (!full.StartsWith(prefix, comparison))
+        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
                 $"The export path \"{relativePath}\" would be written outside the export folder {fullRoot}.");

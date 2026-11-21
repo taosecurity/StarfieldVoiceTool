@@ -31,6 +31,7 @@ List of files: D:\Exports\microgun\list.csv
 - A progress bar and a **Cancel** button show during an export. Cancel stops after the current file, and `list.csv` lists what was written.
 - An export of more than 1,000 files first writes 50 of them, then asks before going on, with a size estimate and the drive's free space.
 - Files that are already in the export folder are kept, so running the same export again only adds what is missing.
+- No file is ever written outside the export folder: a path that climbs up with `..` is refused on every system, including folders where letter case matters (Linux, and WSL folders on Windows).
 - New `starfieldvt-export.exe` with the `sounds` and `voices` commands, a `--list` dry run, and exit codes for scripts. See [Bulk export](README.md#bulk-export) in the README.
 - At `--verbose`, a bulk export logs one line per file. The converter's step-by-step trace moved below that level, so the log stays small.
 - Because the version changed, the voice line cache rebuilds once on first start.

@@ -223,19 +223,16 @@ public class ExportTests : IDisposable
         Assert.Equal(Path.Combine(Path.GetFullPath(root), "a", "b.wav"), ExportLayout.ResolveInside(root, P("a", "b.wav")));
     }
 
-    [UnixFact]
-    public void ResolveInsideRefusesACaseOnlySiblingOnUnix()
+    [Fact]
+    public void ResolveInsideRefusesAnyClimbUp()
     {
         // on a case-sensitive file system "OUT" is a different folder from "out"
         var root = Path.Combine(_dir, "out");
         Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, P("..", "OUT", "evil.wav")));
-    }
-
-    [WindowsFact]
-    public void ResolveInsideIgnoresCaseOnWindows()
-    {
-        var root = Path.Combine(_dir, "out");
-        Assert.Equal(Path.Combine(Path.GetFullPath(_dir), "OUT", "a.wav"), ExportLayout.ResolveInside(root, P("..", "OUT", "a.wav")));
+        Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, "../OUT/evil.wav"));
+        Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, P("a", "..", "b.wav")));
+        // names that only start with dots are fine
+        Assert.Equal(Path.Combine(Path.GetFullPath(root), "..a", "b.wav"), ExportLayout.ResolveInside(root, P("..a", "b.wav")));
     }
 
     [Fact]
