@@ -511,14 +511,15 @@ public class ExportTests : IDisposable
     {
         var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
         var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false);
-        Assert.Equal(b[0].RelativePath, BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns)[0].RelativePath); // no folder yet
+        Assert.Equal(b[0].RelativePath, BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns)[0].Item.RelativePath); // no folder yet
         BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
 
         var planned = BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns);
         var moved = ExportLayout.WithSuffix(b[0].RelativePath, ExportLayout.StableHash(b[0].Description));
-        Assert.Equal(moved, planned[0].RelativePath);
-        Assert.Equal(a[0].RelativePath, BulkExporter.PlannedPaths(a, _dir, ExportLayout.VoiceColumns)[0].RelativePath);
-        Assert.Equal(b[0].RelativePath, BulkExporter.PlannedPaths(b, _dir, null)[0].RelativePath); // --no-csv checks nothing
+        Assert.Equal(moved, planned[0].Item.RelativePath);
+        Assert.Null(planned[0].Problem);
+        Assert.Equal(a[0].RelativePath, BulkExporter.PlannedPaths(a, _dir, ExportLayout.VoiceColumns)[0].Item.RelativePath);
+        Assert.Equal(b[0].RelativePath, BulkExporter.PlannedPaths(b, _dir, null)[0].Item.RelativePath); // --no-csv checks nothing
         Assert.False(File.Exists(Path.Combine(_dir, moved))); // nothing written
 
         var summary = BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
@@ -544,6 +545,71 @@ public class ExportTests : IDisposable
         Assert.Contains("new folder", summary.Failures[0].Message);
         Assert.All(taken, p => Assert.Equal("RIFF ModA.esm", File.ReadAllText(Path.Combine(_dir, p))));
         Assert.DoesNotContain(ExportCsv.Parse(File.ReadAllText(summary.CsvPath!)).Skip(1), r => r[1] == "ModB.esm");
+
+        // --list with --out says so, instead of showing the taken name as if it would be written
+        var planned = BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns);
+        Assert.Equal(b[0].RelativePath, planned[0].Item.RelativePath);
+        Assert.Contains("new folder", planned[0].Problem);
+    }
+
+    [Fact]
+    public void PlannedPathsReportAPathTheRunWouldRefuseInsteadOfThrowing()
+    {
+        var a = ExportLayout.ForVoices([Voice("a/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
+        var rooted = a[0] with { RelativePath = Path.Combine(_dir, "elsewhere.wav") };
+
+        var planned = BulkExporter.PlannedPaths([rooted, a[0]], _dir, ExportLayout.VoiceColumns);
+        Assert.NotNull(planned[0].Problem);
+        Assert.Null(planned[1].Problem);
+
+        var summary = BulkExporter.Run([rooted], _dir, VoiceCsv, VoiceConvert);
+        Assert.Equal(1, summary.Failed); // the run fails the same item
+    }
+
+    [Fact]
+    public void AnItemMovedToAHashedNameIsNotWrittenAgainWhenItsFirstPathIsFreed()
+    {
+        var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false);
+        BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
+        BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
+        var moved = ExportLayout.WithSuffix(b[0].RelativePath, ExportLayout.StableHash(b[0].Description));
+        Assert.True(File.Exists(Path.Combine(_dir, moved)));
+
+        File.Delete(Path.Combine(_dir, a[0].RelativePath)); // ModA's file is gone, so the first path is free
+        Assert.Equal(moved, BulkExporter.PlannedPaths(b, _dir, ExportLayout.VoiceColumns)[0].Item.RelativePath);
+        var summary = BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
+
+        Assert.Equal((0, 1), (summary.Written, summary.Kept));
+        Assert.False(File.Exists(Path.Combine(_dir, a[0].RelativePath)));
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!)).Skip(1).ToList();
+        Assert.Equal([(moved, "ModB.esm")], rows.Select(r => (r[0], r[1])));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AHashedNameNeverTakesAnotherItemsPathInTheSameRun(bool renamedFirst)
+    {
+        var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false);
+        BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
+
+        // item C's own layout path is exactly the hashed name item B would move to
+        var moved = ExportLayout.WithSuffix(b[0].RelativePath, ExportLayout.StableHash(b[0].Description));
+        var c = ExportLayout.ForVoices([Voice("sound/voice/y/other/0002.wem", plugin: "ModC.esm")], keepFolders: false)[0] with { RelativePath = moved };
+        List<ExportItem<VoiceLine>> items = renamedFirst ? [b[0], c] : [c, b[0]];
+
+        var summary = BulkExporter.Run(items, _dir, VoiceCsv, VoiceConvert);
+        var second = ExportLayout.WithSuffix(b[0].RelativePath, ExportLayout.StableHash(b[0].Description) + "_2");
+        Assert.Equal((2, 0, 0), (summary.Written, summary.Kept, summary.Failed));
+        Assert.Equal("RIFF ModA.esm", File.ReadAllText(Path.Combine(_dir, a[0].RelativePath)));
+        Assert.Equal("RIFF ModC.esm", File.ReadAllText(Path.Combine(_dir, moved)));
+        Assert.Equal("RIFF ModB.esm", File.ReadAllText(Path.Combine(_dir, second)));
+        // a rerun keeps both where they are
+        Assert.Equal([moved, second], BulkExporter.PlannedPaths(items, _dir, ExportLayout.VoiceColumns)
+            .Select(p => p.Item.RelativePath).OrderBy(p => p.Length));
     }
 
     [Fact]

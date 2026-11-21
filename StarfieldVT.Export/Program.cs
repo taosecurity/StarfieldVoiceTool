@@ -311,9 +311,9 @@ public static class Program
                 {
                     sameSession = p.SessionId == mySession;
                 }
-                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+                catch (Exception)
                 {
-                    // the process is ending, or its session can't be read
+                    // the process is ending, or its session can't be read (any reason: the session is then unknown)
                 }
 
                 var owner = AccountOf(p.Id);
@@ -397,10 +397,20 @@ public static class Program
         if (options.List)
         {
             // show the names a run into this folder would use (another item's file there means a hashed name)
-            if (options.OutFolder != null) items = BulkExporter.PlannedPaths(items, options.OutFolder, options.NoCsv ? null : columns);
+            var planned = options.OutFolder != null
+                ? BulkExporter.PlannedPaths(items, options.OutFolder, options.NoCsv ? null : columns)
+                : items.Select(i => new PlannedPath<T>(i, null)).ToList();
             Console.WriteLine($"{items.Count:N0} {what} would be exported ({(options.Flat ? "flat" : "game folders")}, list.csv {(options.NoCsv ? "off" : "on")}):");
-            foreach (var item in items.Take(ListRows)) Console.WriteLine($"  {item.RelativePath}  ({item.Description})");
+            foreach (var p in planned.Take(ListRows))
+            {
+                Console.WriteLine(p.Problem == null
+                    ? $"  {p.Item.RelativePath}  ({p.Item.Description})"
+                    : $"  {p.Item.RelativePath}  ({p.Item.Description}) WILL FAIL: {p.Problem}");
+            }
+
             if (items.Count > ListRows) Console.WriteLine($"  ... and {items.Count - ListRows:N0} more");
+            var failing = planned.Count(p => p.Problem != null);
+            if (failing > 0) Console.WriteLine($"{failing:N0} of them would fail in this folder; export into a new folder.");
             return ExportOptions.ExitOk;
         }
 

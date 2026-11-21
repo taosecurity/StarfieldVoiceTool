@@ -10,6 +10,9 @@ namespace StarfieldVT.Core.Export;
 /// <param name="Description">How the log names the item, e.g. "sound 12 from Starfield - WwiseSounds01.ba2".</param>
 public sealed record ExportItem<T>(string RelativePath, IReadOnlyList<string> CsvRow, T Source, string Description);
 
+/// <summary>The path a run would give an item (for --list); Problem says why the run would fail it, or is null.</summary>
+public sealed record PlannedPath<T>(ExportItem<T> Item, string? Problem);
+
 /// <summary>Progress after each file: how many are done out of the total, and the last file's path.</summary>
 public sealed record ExportProgress(int Done, int Total, string RelativePath);
 
