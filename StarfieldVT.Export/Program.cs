@@ -410,7 +410,7 @@ public static class Program
             }
 
             if (items.Count > ListRows) Console.WriteLine($"  ... and {items.Count - ListRows:N0} more");
-            foreach (var line in PlannedPathReport.FailureLines(planned, ListRows)) Console.WriteLine(line);
+            foreach (var line in PlannedPathReport.FailureLines(planned, ListRows, options.Kind ?? ExportKind.Sounds)) Console.WriteLine(line);
             return ExportOptions.ExitOk;
         }
 

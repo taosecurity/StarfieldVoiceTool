@@ -39,6 +39,8 @@ public static class BulkExporter
         IEnumerable<string>? wholeExportPaths = null)
     {
         var clock = Stopwatch.StartNew();
+        var problem = FolderProblem(outFolder);
+        if (problem != null) throw new IOException(problem);
         var root = Path.GetFullPath(outFolder);
         try
         {
@@ -247,17 +249,10 @@ public static class BulkExporter
     /// </summary>
     public static List<PlannedPath<T>> PlannedPaths<T>(IReadOnlyList<ExportItem<T>> items, string outFolder, IReadOnlyList<string>? csvHeader)
     {
-        string root;
-        try
-        {
-            root = Path.GetFullPath(outFolder);
-        }
-        catch (Exception ex)
-        {
-            // a folder name Windows can't take: every item would fail with this message
-            var problem = $"The export folder {outFolder} can't be used ({ex.Message}); choose another --out folder.";
-            return items.Select(i => new PlannedPath<T>(i, problem)).ToList();
-        }
+        // a folder the run couldn't make: every item would fail with this message
+        var problem = FolderProblem(outFolder);
+        if (problem != null) return items.Select(i => new PlannedPath<T>(i, problem)).ToList();
+        var root = Path.GetFullPath(outFolder);
 
         // with no list.csv, or no folder yet, nothing is renamed, but a path the folder can't hold still fails
         var plan = csvHeader == null || !Directory.Exists(root) ? null : PathPlan.For(root, csvHeader, items, null);
@@ -275,6 +270,46 @@ public static class BulkExporter
                 return new PlannedPath<T>(i, ex.Message);
             }
         }).ToList();
+    }
+
+    /// <summary>
+    /// Why <see cref="Run{T}"/> couldn't make or use this export folder, or null when it can (as far as
+    /// can be told without writing): a name the system refuses, a folder name with a character file
+    /// names can't hold (on Windows <c>&lt; &gt; : " | ? *</c>, which .NET doesn't refuse until the folder
+    /// is made), or a part of the path that is a file. Writes nothing; --list and the run share it.
+    /// </summary>
+    public static string? FolderProblem(string outFolder)
+    {
+        static string Message(string folder, string reason) =>
+            $"Could not make the export folder {folder} ({reason}). Choose a folder you can write to that isn't the name of a file.";
+
+        string root;
+        try
+        {
+            root = Path.GetFullPath(outFolder);
+        }
+        catch (Exception ex)
+        {
+            return Message(outFolder, ex.Message);
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var parts = root[(Path.GetPathRoot(root) ?? "").Length..]
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            if (part.IndexOfAny(invalid) >= 0)
+                return Message(root, $"the folder name \"{part}\" has a character a file or folder name can't hold");
+        }
+
+        // the nearest part of the path that exists must be a folder
+        for (var dir = root; !string.IsNullOrEmpty(dir); dir = Path.GetDirectoryName(dir))
+        {
+            if (Directory.Exists(dir)) break;
+            if (File.Exists(dir)) return Message(root, $"{dir} is a file");
+        }
+
+        return null;
     }
 
     /// <summary>The most tries at a free hashed name before an item is reported as failed.</summary>

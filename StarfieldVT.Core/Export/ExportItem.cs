@@ -19,8 +19,9 @@ public static class PlannedPathReport
     /// <summary>
     /// Failing items below the first <paramref name="shown"/> rows (at most <paramref name="shown"/> of
     /// them, each with its WILL FAIL reason), then one closing line; nothing when no item would fail.
+    /// The closing hint names only the filters <paramref name="kind"/> accepts.
     /// </summary>
-    public static List<string> FailureLines<T>(IReadOnlyList<PlannedPath<T>> planned, int shown)
+    public static List<string> FailureLines<T>(IReadOnlyList<PlannedPath<T>> planned, int shown, ExportKind kind)
     {
         var lines = new List<string>();
         var failing = planned.Count(p => p.Problem != null);
@@ -29,13 +30,14 @@ public static class PlannedPathReport
         var below = planned.Skip(shown).Where(p => p.Problem != null).ToList();
         if (below.Count > 0)
         {
-            lines.Add($"Items below the first {shown} rows that would fail:");
+            // these are among the "... and N more" rows the list didn't print
+            lines.Add("Of the items not shown above, these would fail:");
             lines.AddRange(below.Take(shown).Select(p => $"  {p.Item.RelativePath}  ({p.Item.Description}) WILL FAIL: {p.Problem}"));
             if (below.Count > shown) lines.Add($"  ... and {below.Count - shown:N0} more that would fail");
         }
 
         lines.Add(below.Count > shown
-            ? $"{failing:N0} of them would fail; the reasons of the ones shown follow WILL FAIL above. Narrow the options (--group, --plugin or --search) to see the rest."
+            ? $"{failing:N0} of them would fail; the reasons of the ones shown follow WILL FAIL above. Narrow the options ({(kind == ExportKind.Sounds ? "--group or --search" : "--plugin, --voice-type or --search")}) to see the rest."
             : $"{failing:N0} of them would fail; each one's reason follows WILL FAIL above.");
         return lines;
     }

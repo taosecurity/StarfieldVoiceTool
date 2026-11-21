@@ -698,8 +698,39 @@ public class ExportTests : IDisposable
     {
         var a = ExportLayout.ForVoices([Voice("a/0001.wem", plugin: "ModA.esm")], keepFolders: false);
         var planned = BulkExporter.PlannedPaths(a, "bad\0name", null);
-        Assert.Contains("can't be used", Assert.Single(planned).Problem);
+        Assert.Contains("Could not make the export folder", Assert.Single(planned).Problem);
         Assert.NotNull(BulkExporter.PlannedPaths(a, "bad\0name", ExportLayout.VoiceColumns)[0].Problem);
+    }
+
+    [Fact]
+    public void PlannedPathsAndTheRunAgreeOnAFolderNameWithACharacterFileNamesCantHold()
+    {
+        if (!OperatingSystem.IsWindows()) return; // on Linux only \0 and / are refused, and / splits the path
+        var a = ExportLayout.ForVoices([Voice("a/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var bad = Path.Combine(_dir, "Ex|ports");
+
+        // .NET's GetFullPath accepts the name, so only this check catches it before the run
+        _ = Path.GetFullPath(bad); // doesn't throw
+        var problem = BulkExporter.PlannedPaths(a, bad, null)[0].Problem;
+        Assert.Contains("\"Ex|ports\"", problem);
+        var ex = Assert.Throws<IOException>(() => BulkExporter.Run(a, bad, VoiceCsv, VoiceConvert));
+        Assert.Equal(problem, ex.Message);
+        Assert.False(Directory.Exists(_dir)); // nothing was made
+    }
+
+    [Fact]
+    public void PlannedPathsMarkEveryItemWhenAPartOfTheFolderIsAFile()
+    {
+        var a = ExportLayout.ForVoices([Voice("a/0001.wem", plugin: "ModA.esm"), Voice("a/0002.wem", plugin: "ModA.esm")], keepFolders: false);
+        Directory.CreateDirectory(_dir);
+        var file = Path.Combine(_dir, "notafolder");
+        File.WriteAllText(file, "x");
+
+        Assert.Null(BulkExporter.FolderProblem(Path.Combine(_dir, "new", "deeper")));
+        var planned = BulkExporter.PlannedPaths(a, Path.Combine(file, "sub"), ExportLayout.VoiceColumns);
+        Assert.All(planned, p => Assert.Contains("is a file", p.Problem));
+        Assert.Contains("is a file", BulkExporter.FolderProblem(file));
+        Assert.Throws<IOException>(() => BulkExporter.Run(a, Path.Combine(file, "sub"), VoiceCsv, VoiceConvert));
     }
 
     [Fact]
@@ -709,19 +740,32 @@ public class ExportTests : IDisposable
             .Select(n => new PlannedPath<int>(new ExportItem<int>($"f{n}.wav", [], n, $"item {n}"), n is 2 or 6 or 7 or 9 ? "no room" : null))
             .ToList();
 
-        Assert.Empty(PlannedPathReport.FailureLines(items.Where(p => p.Problem == null).ToList(), 3));
+        Assert.Empty(PlannedPathReport.FailureLines(items.Where(p => p.Problem == null).ToList(), 3, ExportKind.Sounds));
 
         // the first 3 rows are shown; 6, 7 and 9 are below them, and only 3 of those fit
-        var lines = PlannedPathReport.FailureLines(items, 3);
-        Assert.Equal("Items below the first 3 rows that would fail:", lines[0]);
+        var lines = PlannedPathReport.FailureLines(items, 3, ExportKind.Sounds);
+        Assert.Equal("Of the items not shown above, these would fail:", lines[0]);
         Assert.Equal(["  f6.wav  (item 6) WILL FAIL: no room", "  f7.wav  (item 7) WILL FAIL: no room", "  f9.wav  (item 9) WILL FAIL: no room"], lines[1..4]);
         Assert.Equal("4 of them would fail; each one's reason follows WILL FAIL above.", lines[^1]);
 
-        var tight = PlannedPathReport.FailureLines(items, 2); // 6, 7 and 9 below; 2 fit
+        var tight = PlannedPathReport.FailureLines(items, 2, ExportKind.Sounds); // 6, 7 and 9 below; 2 fit
         Assert.Equal("  ... and 1 more that would fail", tight[^2]);
         Assert.StartsWith("4 of them would fail; the reasons of the ones shown", tight[^1]);
+        Assert.EndsWith("(--group or --search) to see the rest.", tight[^1]);
 
-        var allShown = PlannedPathReport.FailureLines(items, 10);
+        // the hint names only options the kind accepts (ExportOptions refuses --group for voices)
+        var voices = PlannedPathReport.FailureLines(items, 2, ExportKind.Voices);
+        Assert.EndsWith("(--plugin, --voice-type or --search) to see the rest.", voices[^1]);
+        foreach (var kind in new[] { ExportKind.Sounds, ExportKind.Voices })
+        {
+            var hint = PlannedPathReport.FailureLines(items, 2, kind)[^1];
+            var named = System.Text.RegularExpressions.Regex.Matches(hint, "--[a-z-]+").Select(m => m.Value).ToList();
+            var args = new List<string> { kind == ExportKind.Sounds ? "sounds" : "voices", "--out", "x" };
+            foreach (var option in named) args.AddRange([option, "y"]);
+            Assert.Empty(ExportOptions.Parse(args.ToArray()).Errors);
+        }
+
+        var allShown = PlannedPathReport.FailureLines(items, 10, ExportKind.Sounds);
         Assert.Equal(["4 of them would fail; each one's reason follows WILL FAIL above."], allShown);
     }
 
