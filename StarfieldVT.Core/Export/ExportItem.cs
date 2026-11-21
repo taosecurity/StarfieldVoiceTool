@@ -30,6 +30,12 @@ public sealed record ExportSummary(
     string? CsvPath,
     IReadOnlyList<ExportFailure> Failures)
 {
+    /// <summary>
+    /// The paths (below the export folder) of the files that exist at the end, written or kept, in
+    /// item order. A path may be a hashed name rather than the item's layout path.
+    /// </summary>
+    public IReadOnlyList<string> PresentPaths { get; init; } = [];
+
     /// <summary>Files neither written, kept nor failed because the export was cancelled first.</summary>
     public int NotReached => Total - Written - Kept - Failed;
 

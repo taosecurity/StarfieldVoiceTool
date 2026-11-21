@@ -62,7 +62,7 @@ public class ExportPlanTests : IDisposable
         File.WriteAllBytes(Path.Combine(_dir, "b.wav"), new byte[30]);
 
         var sizes = ExportPlan.SampleSizes(_dir,
-            [Item(Path.Combine("WPN", "a.wav")), Item("missing.wav"), Item("b.wav"), Item(Path.Combine("..", "outside.wav"))]);
+            [Path.Combine("WPN", "a.wav"), "missing.wav", "b.wav", Path.Combine("..", "outside.wav")]);
 
         Assert.Equal([10L, 30L], sizes);
     }
@@ -129,7 +129,7 @@ public class ExportPlanTests : IDisposable
         void Convert(int n, string path) => File.WriteAllBytes(path, new byte[n + 1]);
 
         var sample = BulkExporter.Run(items.Take(ExportPlan.SampleSize).ToList(), _dir, options, (Action<int, string>)Convert);
-        var sizes = ExportPlan.SampleSizes(_dir, items.Take(ExportPlan.SampleSize));
+        var sizes = ExportPlan.SampleSizes(_dir, sample.PresentPaths);
         var all = BulkExporter.Run(items, _dir, options, (Action<int, string>)Convert);
         var merged = ExportPlan.Merge(sample, all);
 

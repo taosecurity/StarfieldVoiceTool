@@ -26,18 +26,19 @@ public static class ExportPlan
         string.Create(CultureInfo.CurrentCulture, $"Exporting {done:N0} of {total:N0}...");
 
     /// <summary>
-    /// The sizes in bytes of the sample's files that exist (written now or already there), in order;
-    /// files that failed or weren't reached are left out.
+    /// The sizes in bytes of the sample's files that exist, in order. Pass the sample run's
+    /// <see cref="ExportSummary.PresentPaths"/>, which holds the names the files were really given
+    /// (an item moved to a hashed name is measured there, not at another item's file).
     /// </summary>
-    public static List<long> SampleSizes<T>(string outFolder, IEnumerable<ExportItem<T>> sample)
+    public static List<long> SampleSizes(string outFolder, IEnumerable<string> relativePaths)
     {
         var root = Path.GetFullPath(outFolder);
         var sizes = new List<long>();
-        foreach (var item in sample)
+        foreach (var relativePath in relativePaths)
         {
             try
             {
-                var file = new FileInfo(ExportLayout.ResolveInside(root, item.RelativePath));
+                var file = new FileInfo(ExportLayout.ResolveInside(root, relativePath));
                 if (file.Exists) sizes.Add(file.Length);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)

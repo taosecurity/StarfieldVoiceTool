@@ -87,14 +87,16 @@ public static class BulkExportFlow
             else
             {
                 var sampleItems = items.Take(ExportPlan.SampleSize).ToList();
-                var sample = await Task.Run(() => BulkExporter.Run(sampleItems, folder, options, convert, progress, token));
+                // the sample's hashed names must leave the paths of the rest of the export free
+                var wholePaths = items.Select(i => i.RelativePath).ToList();
+                var sample = await Task.Run(() => BulkExporter.Run(sampleItems, folder, options, convert, progress, token, wholePaths));
                 if (ExportPlan.SampleCancelled(sample, token))
                 {
                     setStatus($"Export cancelled after {sample.Written + sample.Kept:N0} of {items.Count:N0} {what} in {folder}");
                     return;
                 }
 
-                var estimate = ExportPlan.EstimateBytes(ExportPlan.SampleSizes(folder, sampleItems), items.Count);
+                var estimate = ExportPlan.EstimateBytes(ExportPlan.SampleSizes(folder, sample.PresentPaths), items.Count);
                 var message = ExportPlan.ConfirmMessage(items.Count, what, folder, estimate, FreeSpace(folder));
                 Log.Information("Asking before a big export: {Count} {What}, estimate {Estimate} bytes", items.Count, what, estimate);
 

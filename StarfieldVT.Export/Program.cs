@@ -311,9 +311,10 @@ public static class Program
                 {
                     sameSession = p.SessionId == mySession;
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     // the process is ending, or its session can't be read (any reason: the session is then unknown)
+                    Log.Debug(ex, "Could not read the session of StarfieldVT process {Id}; counting it as unknown", p.Id);
                 }
 
                 var owner = AccountOf(p.Id);
@@ -410,7 +411,7 @@ public static class Program
 
             if (items.Count > ListRows) Console.WriteLine($"  ... and {items.Count - ListRows:N0} more");
             var failing = planned.Count(p => p.Problem != null);
-            if (failing > 0) Console.WriteLine($"{failing:N0} of them would fail in this folder; export into a new folder.");
+            if (failing > 0) Console.WriteLine($"{failing:N0} of them would fail; each one's reason follows WILL FAIL in the list (only the first {ListRows} rows are shown).");
             return ExportOptions.ExitOk;
         }
 

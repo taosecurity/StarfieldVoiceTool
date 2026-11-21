@@ -25,13 +25,18 @@ public static class BulkExporter
     /// <param name="convert">Writes one item's WAV file to the given full path.</param>
     /// <param name="progress">Told after each file; may be null.</param>
     /// <param name="cancel">Checked before each file; a file in progress finishes first.</param>
+    /// <param name="wholeExportPaths">
+    /// When this run is the first part of a bigger export (the window's 50-file sample), the layout
+    /// paths of the whole export, so a hashed name never lands on a path a later item of it needs.
+    /// </param>
     public static ExportSummary Run<T>(
         IReadOnlyList<ExportItem<T>> items,
         string outFolder,
         BulkExportOptions options,
         Action<T, string> convert,
         IProgress<ExportProgress>? progress = null,
-        CancellationToken cancel = default)
+        CancellationToken cancel = default,
+        IEnumerable<string>? wholeExportPaths = null)
     {
         var clock = Stopwatch.StartNew();
         var root = Path.GetFullPath(outFolder);
@@ -53,7 +58,7 @@ public static class BulkExporter
         var present = new List<ExportItem<T>>();
 
         // who the earlier list.csv says each existing file belongs to, so a file is kept only for its own item
-        var plan = PathPlan.For(root, options.CsvHeader, items);
+        var plan = PathPlan.For(root, options.CsvHeader, items, wholeExportPaths);
 
         foreach (var original in items)
         {
@@ -133,7 +138,10 @@ public static class BulkExporter
             }
         }
 
-        var summary = new ExportSummary(items.Count, written, kept, failed, cancelled, clock.Elapsed.TotalSeconds, csvPath, failures);
+        var summary = new ExportSummary(items.Count, written, kept, failed, cancelled, clock.Elapsed.TotalSeconds, csvPath, failures)
+        {
+            PresentPaths = present.Select(i => i.RelativePath).ToList(),
+        };
         Log.Information("Bulk export finished: {Written} written, {Kept} kept, {Failed} failed, cancelled {Cancelled}, {Seconds:F1} s, list {CsvPath}",
             summary.Written, summary.Kept, summary.Failed, summary.Cancelled, summary.Seconds, csvPath ?? "none");
         return summary;
@@ -239,14 +247,15 @@ public static class BulkExporter
     /// </summary>
     public static List<PlannedPath<T>> PlannedPaths<T>(IReadOnlyList<ExportItem<T>> items, string outFolder, IReadOnlyList<string>? csvHeader)
     {
-        if (csvHeader == null || !Directory.Exists(outFolder)) return items.Select(i => new PlannedPath<T>(i, null)).ToList();
-        var plan = PathPlan.For(Path.GetFullPath(outFolder), csvHeader, items)!;
+        var root = Path.GetFullPath(outFolder);
+        // with no list.csv, or no folder yet, nothing is renamed, but a path the folder can't hold still fails
+        var plan = csvHeader == null || !Directory.Exists(root) ? null : PathPlan.For(root, csvHeader, items, null);
         return items.Select(i =>
         {
             try
             {
-                var own = plan.OwnPath(i, warn: false);
-                ExportLayout.ResolveInside(plan.Root, own.RelativePath); // throws for a path the run would refuse
+                var own = plan?.OwnPath(i, warn: false) ?? i;
+                ExportLayout.ResolveInside(root, own.RelativePath); // throws for a path the run would refuse
                 return new PlannedPath<T>(own, null);
             }
             catch (Exception ex)
@@ -271,7 +280,7 @@ public static class BulkExporter
         private readonly Dictionary<string, List<string>> _owners;
         private readonly Dictionary<string, HashSet<string>> _listedFor;
         private readonly HashSet<string> _layoutPaths;
-        private readonly HashSet<string> _renamed = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _renamed = new(StringComparer.OrdinalIgnoreCase); // hashed names handed out in this run
 
         private PathPlan(string root, int[] identity, Dictionary<string, List<string>> owners, HashSet<string> layoutPaths)
         {
@@ -289,15 +298,13 @@ public static class BulkExporter
         }
 
         /// <summary>The plan for a run into <paramref name="root"/>; null when no list.csv is written (nothing is checked).</summary>
-        public static PathPlan? For<T>(string root, IReadOnlyList<string>? header, IReadOnlyList<ExportItem<T>> items)
+        public static PathPlan? For<T>(string root, IReadOnlyList<string>? header, IReadOnlyList<ExportItem<T>> items, IEnumerable<string>? wholeExportPaths)
         {
             if (header == null) return null;
-            return new PathPlan(root, ExportLayout.IdentityColumns(header), EarlierOwners(Path.Combine(root, ExportCsv.FileName), header),
-                new HashSet<string>(items.Select(i => i.RelativePath), StringComparer.OrdinalIgnoreCase));
+            var layoutPaths = new HashSet<string>(items.Select(i => i.RelativePath), StringComparer.OrdinalIgnoreCase);
+            if (wholeExportPaths != null) layoutPaths.UnionWith(wholeExportPaths);
+            return new PathPlan(root, ExportLayout.IdentityColumns(header), EarlierOwners(Path.Combine(root, ExportCsv.FileName), header), layoutPaths);
         }
-
-        /// <summary>The export folder (full path).</summary>
-        public string Root => _root;
 
         /// <summary>The earlier list.csv names this file.</summary>
         public bool Lists(string relativePath) => _owners.ContainsKey(relativePath);
@@ -305,9 +312,11 @@ public static class BulkExporter
         /// <summary>
         /// The item at its own path: the first path, unless that holds a file the earlier list.csv lists
         /// under another item. Then (or when the earlier list shows this item at one of its hashed names
-        /// whose file is still there) <c>&lt;name&gt;_&lt;hash&gt;.wav</c>, then <c>_2</c> ... A hashed name
-        /// another item of this run uses is skipped. Throws when no free name is left, so another item's
-        /// file is never kept.
+        /// whose file is still there) <c>&lt;name&gt;_&lt;hash&gt;.wav</c>, then <c>_2</c> ... A new hashed
+        /// name skips the paths other items of this run use. An item's own earlier file is kept even
+        /// when it sits on another item's layout path (that item moves instead, since the earlier list
+        /// shows the file as this item's), so no item is ever exported twice. Throws when no free name
+        /// is left, so another item's file is never kept.
         /// </summary>
         public ExportItem<T> OwnPath<T>(ExportItem<T> original, bool warn)
         {
@@ -315,25 +324,26 @@ public static class BulkExporter
             var first = original.RelativePath;
             var hash = ExportLayout.StableHash(original.Description);
             string Candidate(int n) => n == 0 ? first : ExportLayout.WithSuffix(first, hash + (n == 1 ? "" : "_" + n));
-            bool FreeOfThisRun(int n) => n == 0 || (!_layoutPaths.Contains(Candidate(n)) && !_renamed.Contains(Candidate(n)));
 
-            // 1. this item's own file from an earlier run, at its first path or a hashed name
+            // 1. this item's own file from an earlier run, at its first path or a hashed name (the lowest n wins)
             if (_listedFor.TryGetValue(Key(original), out var listed))
             {
-                // most items are listed only at their first path: then one look is enough
-                var last = listed.Count == 1 && listed.Contains(first) ? 0 : MaxRenames;
-                for (var n = 0; n <= last; n++)
+                var best = -1;
+                foreach (var path in listed)
                 {
-                    var path = Candidate(n);
-                    if (listed.Contains(path) && FreeOfThisRun(n) && Exists(path)) return Claim(original, path, n, warn, kept: true);
+                    var n = CandidateIndex(path, first, hash);
+                    if (n < 0 || (best >= 0 && n >= best)) continue;
+                    if ((n == 0 || !_renamed.Contains(path)) && Exists(path)) best = n;
                 }
+
+                if (best >= 0) return Claim(original, Candidate(best), best, warn, kept: true);
             }
 
             // 2. the first free name: not listed under another item with its file still there
             for (var n = 0; n <= MaxRenames; n++)
             {
                 var path = Candidate(n);
-                if (!FreeOfThisRun(n)) continue;
+                if (n > 0 && (_layoutPaths.Contains(path) || _renamed.Contains(path))) continue;
                 if (!_owners.TryGetValue(path, out var owner) || SameItem(owner, original) || !Exists(path))
                 {
                     return Claim(original, path, n, warn, kept: false);
@@ -367,6 +377,28 @@ public static class BulkExporter
         }
 
         private bool Exists(string relativePath) => File.Exists(ExportLayout.ResolveInside(_root, relativePath));
+
+        /// <summary>
+        /// Which of the item's names a path is: 0 for its first path, 1 for <c>_&lt;hash&gt;</c>, n for
+        /// <c>_&lt;hash&gt;_n</c> (2 to 99), or -1 for another path. One look per listed path, so a big
+        /// re-export doesn't build all 100 names for every item.
+        /// </summary>
+        public static int CandidateIndex(string path, string first, string hash)
+        {
+            if (string.Equals(path, first, StringComparison.OrdinalIgnoreCase)) return 0;
+            var hashed = ExportLayout.WithSuffix(first, hash);
+            if (string.Equals(path, hashed, StringComparison.OrdinalIgnoreCase)) return 1;
+
+            var ext = Path.GetExtension(first);
+            var stem = hashed[..^ext.Length] + "_";
+            if (path.Length <= stem.Length + ext.Length ||
+                !path.StartsWith(stem, StringComparison.OrdinalIgnoreCase) ||
+                !path.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return -1;
+            var digits = path[stem.Length..^ext.Length];
+            if (digits.Length > 2 || digits[0] == '0' || !digits.All(char.IsAsciiDigit)) return -1;
+            var n = int.Parse(digits, System.Globalization.CultureInfo.InvariantCulture);
+            return n is >= 2 and <= MaxRenames ? n : -1;
+        }
 
         /// <summary>The identity columns of a row (File first), joined, to find an item's earlier rows.</summary>
         private string Key(IReadOnlyList<string> row) =>
