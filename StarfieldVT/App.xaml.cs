@@ -61,10 +61,8 @@ namespace StarfieldVT
 
             // ww2ogg (BnkExtractor) reports conversion problems through its own events, which by
             // default only reach a console the Windows build doesn't have
-            BnkExtractor.Logger.Warning += m => Log.Warning("ww2ogg: {Message}", m);
-            BnkExtractor.Logger.Error += m => Log.Error("ww2ogg: {Message}", m);
-            BnkExtractor.Logger.Fatal += m => Log.Fatal("ww2ogg: {Message}", m);
-            BnkExtractor.Logger.Verbose += m => Log.Debug("ww2ogg: {Message}", m);
+            // (its trace, about 100 lines per sound, goes below --verbose; see ConverterLog)
+            AudioConverter.RouteConverterLog();
 
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             {

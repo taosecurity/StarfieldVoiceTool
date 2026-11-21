@@ -100,11 +100,9 @@ public static class Program
             options.Verbose ? "Debug (--verbose)" : "Information",
             logFile ?? Path.Combine(AppDataFolder.GetLogDir(), "starfieldvt-export<date>.log"));
 
-        // ww2ogg reports conversion problems through its own events
-        BnkExtractor.Logger.Warning += m => Log.Warning("ww2ogg: {Message}", m);
-        BnkExtractor.Logger.Error += m => Log.Error("ww2ogg: {Message}", m);
-        BnkExtractor.Logger.Fatal += m => Log.Fatal("ww2ogg: {Message}", m);
-        BnkExtractor.Logger.Verbose += m => Log.Debug("ww2ogg: {Message}", m);
+        // ww2ogg reports conversion problems through its own events; its trace goes below --verbose
+        // (and its own console printing is turned off)
+        AudioConverter.RouteConverterLog();
     }
 
     private static int Run(ExportOptions options, CancellationToken cancel)
@@ -207,12 +205,9 @@ public static class Program
             voiceType = voiceTypes.FirstOrDefault(vt => vt.EditorId.Equals(options.VoiceType, StringComparison.OrdinalIgnoreCase))?.EditorId;
             if (voiceType == null)
             {
-                var near = voiceTypes.Select(vt => vt.EditorId)
-                    .Where(id => id.Contains(options.VoiceType, StringComparison.OrdinalIgnoreCase))
-                    .Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToList();
                 Log.Error("No voice type \"{VoiceType}\"{InPlugin}. {Hint}", options.VoiceType,
                     plugin == null ? "" : $" in {plugin}",
-                    near.Count > 0 ? "Did you mean: " + string.Join(", ", near) : "Run with --list and no --voice-type to see the voice lines.");
+                    VoiceTypeHint.For(tree, plugin, options.VoiceType));
                 return null;
             }
 

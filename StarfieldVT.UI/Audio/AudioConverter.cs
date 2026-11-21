@@ -5,6 +5,7 @@ using BnkExtractor;
 using Serilog;
 
 using StarfieldVT.Core.Audio;
+using StarfieldVT.Core.Export;
 using StarfieldVT.Core.Filesystem;
 using StarfieldVT.Core.Sounds;
 
@@ -13,6 +14,22 @@ namespace StarfieldVT.UI.Audio;
 public static class AudioConverter
 {
     /// <summary>
+    /// Send ww2ogg's (BnkExtractor's) log events to Serilog through ConverterLog. Its own default
+    /// handlers print every trace line to the console (about 100 per sound), so they are removed
+    /// first; the window has no console, but starfieldvt-export does. Call once at startup.
+    /// </summary>
+    public static void RouteConverterLog()
+    {
+        BnkExtractor.Logger.ClearLoggingEvents();
+        BnkExtractor.Logger.Info += ConverterLog.Trace;
+        BnkExtractor.Logger.Debug += ConverterLog.Trace;
+        BnkExtractor.Logger.Verbose += ConverterLog.Trace;
+        BnkExtractor.Logger.Warning += ConverterLog.Warning;
+        BnkExtractor.Logger.Error += ConverterLog.Error;
+        BnkExtractor.Logger.Fatal += ConverterLog.Fatal;
+    }
+
+    /// <summary>
     /// Convert Wwise .wem bytes to a .wav at <paramref name="wavPath"/>: ww2ogg turns the .wem into
     /// Ogg Vorbis, then NVorbis decodes it to PCM. The intermediate .wem and .ogg files are written
     /// to the app's temp folder and always cleaned up.
@@ -20,7 +37,8 @@ public static class AudioConverter
     public static void ConvertWemToWav(byte[] wemBytes, string wavPath)
     {
         var tag = WemFormat.ReadFormatTag(wemBytes);
-        Log.Debug("Converting {Codec} .wem ({Bytes} bytes) to {WavPath}", WemFormat.Describe(tag), wemBytes.Length, wavPath);
+        // Verbose, not Debug: a bulk export at --verbose logs one line per file (BulkExporter's)
+        Log.Verbose("Converting {Codec} .wem ({Bytes} bytes) to {WavPath}", WemFormat.Describe(tag), wemBytes.Length, wavPath);
         if (tag == WemFormat.WwisePcm)
         {
             ConvertPcm(wemBytes, wavPath);
@@ -55,7 +73,7 @@ public static class AudioConverter
                 Directory.CreateDirectory(directoryName);
             }
 
-            Log.Debug("Writing converted wem file to wav file at {WavPath}", wavPath);
+            Log.Verbose("Writing converted wem file to wav file at {WavPath}", wavPath);
             OggToWav.Convert(tempOggPath, wavPath);
         }
         catch (Exception e)
@@ -84,7 +102,7 @@ public static class AudioConverter
                 WwisePcm.ToWav(wemBytes, output);
             }
 
-            Log.Debug("Wrote PCM sound to wav file at {WavPath}", wavPath);
+            Log.Verbose("Wrote PCM sound to wav file at {WavPath}", wavPath);
         }
         catch (Exception e)
         {
