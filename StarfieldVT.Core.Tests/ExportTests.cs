@@ -170,14 +170,10 @@ public class ExportTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, rooted));
     }
 
-    [Fact]
-    public void ColonNameStaysInsideOnLinux()
+    [UnixFact]
+    public void ColonNameStaysInsideOnUnix()
     {
-        if (OperatingSystem.IsWindows())
-        {
-            return; // "Z:" is a drive on Windows; the test above covers it
-        }
-
+        // "Z:" is a drive on Windows, where the test above covers it
         var root = Path.GetPathRoot(Path.GetFullPath(_dir))!;
         Assert.Equal(Path.Combine(root, "Z:", "a.wav"), ExportLayout.ResolveInside(root, "Z:/a.wav"));
     }
@@ -225,6 +221,21 @@ public class ExportTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, Path.GetFullPath(P(_dir, "evil.wav"))));
         Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, P("..", "out2", "evil.wav")));
         Assert.Equal(Path.Combine(Path.GetFullPath(root), "a", "b.wav"), ExportLayout.ResolveInside(root, P("a", "b.wav")));
+    }
+
+    [UnixFact]
+    public void ResolveInsideRefusesACaseOnlySiblingOnUnix()
+    {
+        // on a case-sensitive file system "OUT" is a different folder from "out"
+        var root = Path.Combine(_dir, "out");
+        Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, P("..", "OUT", "evil.wav")));
+    }
+
+    [WindowsFact]
+    public void ResolveInsideIgnoresCaseOnWindows()
+    {
+        var root = Path.Combine(_dir, "out");
+        Assert.Equal(Path.Combine(Path.GetFullPath(_dir), "OUT", "a.wav"), ExportLayout.ResolveInside(root, P("..", "OUT", "a.wav")));
     }
 
     [Fact]

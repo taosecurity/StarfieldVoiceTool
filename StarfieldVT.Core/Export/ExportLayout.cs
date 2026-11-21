@@ -89,7 +89,9 @@ public static class ExportLayout
         var full = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
         // a drive root such as "D:\" keeps its separator after the trim
         var prefix = Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
-        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        // Linux file names are case-sensitive, so "/tmp/OUT" is a different folder from "/tmp/out"
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!full.StartsWith(prefix, comparison))
         {
             throw new InvalidOperationException(
                 $"The export path \"{relativePath}\" would be written outside the export folder {fullRoot}.");
