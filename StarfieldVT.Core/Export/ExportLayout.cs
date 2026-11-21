@@ -76,7 +76,9 @@ public static class ExportLayout
 
     /// <summary>
     /// The full path of <paramref name="relativePath"/> below <paramref name="root"/>. Throws
-    /// <see cref="InvalidOperationException"/> if the result would land outside the root.
+    /// <see cref="InvalidOperationException"/> if the path is rooted, contains a ".." segment (even one
+    /// that would stay inside), or would land outside the root. The check is on the path text only:
+    /// it doesn't follow links or junctions inside the export folder.
     /// </summary>
     public static string ResolveInside(string root, string relativePath)
     {
@@ -87,7 +89,8 @@ public static class ExportLayout
         }
 
         // No ".." segment at all: whether "../OUT" is the export folder or a sibling depends on the
-        // file system's case rules (Linux, WSL folders), so climbing up is refused outright.
+        // file system's case rules (Linux, WSL folders), so climbing up is refused outright. Splitting on
+        // both slashes is deliberately strict: the layout's cleaned names never hold either one.
         if (relativePath.Split('/', '\\').Any(part => part == ".."))
         {
             throw new InvalidOperationException(
@@ -97,7 +100,9 @@ public static class ExportLayout
         var full = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
         // a drive root such as "D:\" keeps its separator after the trim
         var prefix = Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
-        if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        // second guard; with no ".." the full path keeps the root's exact case, so Ordinal off Windows never refuses a good path
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!full.StartsWith(prefix, comparison))
         {
             throw new InvalidOperationException(
                 $"The export path \"{relativePath}\" would be written outside the export folder {fullRoot}.");
