@@ -48,8 +48,7 @@ public static class BulkExporter
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new IOException(
-                $"Could not make the export folder {root} ({ex.Message}). Choose a folder you can write to that isn't the name of a file.", ex);
+            throw new IOException(FolderMessage(root, ex.Message), ex);
         }
         Log.Information("Bulk export of {Count} files to {Folder}, layout {Layout}, list.csv {Csv}",
             items.Count, root, options.Layout, options.CsvHeader == null ? "off" : "on");
@@ -280,8 +279,7 @@ public static class BulkExporter
     /// </summary>
     public static string? FolderProblem(string outFolder)
     {
-        static string Message(string folder, string reason) =>
-            $"Could not make the export folder {folder} ({reason}). Choose a folder you can write to that isn't the name of a file.";
+        static string Message(string folder, string reason) => FolderMessage(folder, reason);
 
         string root;
         try
@@ -311,6 +309,13 @@ public static class BulkExporter
 
         return null;
     }
+
+    /// <summary>
+    /// The one message for an export folder that can't be made, used by <see cref="FolderProblem"/>
+    /// (so <c>--list</c> shows it) and by <see cref="Run"/> when making the folder fails.
+    /// </summary>
+    public static string FolderMessage(string folder, string reason) =>
+        $"Could not make the export folder {folder} ({reason}). Choose a folder you can write to that isn't the name of a file.";
 
     /// <summary>The most tries at a free hashed name before an item is reported as failed.</summary>
     private const int MaxRenames = 99;

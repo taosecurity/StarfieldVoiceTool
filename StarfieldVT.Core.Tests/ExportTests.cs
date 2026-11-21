@@ -447,6 +447,21 @@ public class ExportTests : IDisposable
     }
 
     [Fact]
+    public void ListAndRunGiveTheSameFolderMessage()
+    {
+        Directory.CreateDirectory(_dir);
+        var file = Path.Combine(_dir, "afile2");
+        File.WriteAllText(file, "x");
+        var problem = BulkExporter.FolderProblem(Path.Combine(file, "sub"));
+        Assert.NotNull(problem);
+        var ex = Assert.Throws<IOException>(() =>
+            BulkExporter.Run(ExportLayout.ForSounds([Sound(1, "A")], keepFolders: false), Path.Combine(file, "sub"), WithCsv, FakeConvert));
+        Assert.Equal(problem, ex.Message);
+        Assert.StartsWith(BulkExporter.FolderMessage(Path.GetFullPath(Path.Combine(file, "sub")), "").Split(" (")[0], problem);
+        Assert.EndsWith("Choose a folder you can write to that isn't the name of a file.", BulkExporter.FolderMessage("x", "y"));
+    }
+
+    [Fact]
     public void SampleCancelledChecksTheTokenToo()
     {
         var done = new ExportSummary(50, 50, 0, 0, false, 1, null, []);
