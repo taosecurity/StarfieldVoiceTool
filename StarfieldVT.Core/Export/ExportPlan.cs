@@ -95,6 +95,14 @@ public static class ExportPlan
     }
 
     /// <summary>
+    /// True when the sample run of a big export was cancelled. Cancel pressed while the last sample
+    /// file was being written leaves the summary's Cancelled false (the loop had already ended), so
+    /// the token is checked too; otherwise the confirm dialog would open and the full run stop at once.
+    /// </summary>
+    public static bool SampleCancelled(ExportSummary sample, CancellationToken token) =>
+        sample.Cancelled || token.IsCancellationRequested;
+
+    /// <summary>
     /// One summary for a big export done in two runs: the sample, then the whole list (which keeps
     /// the sample's files, so they count as written, not kept).
     /// </summary>

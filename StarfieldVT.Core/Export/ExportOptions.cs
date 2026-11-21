@@ -26,6 +26,12 @@ public sealed class ExportOptions
     /// <summary>No Starfield Data folder was found.</summary>
     public const int ExitNoGame = 3;
 
+    /// <summary>
+    /// The export couldn't run at all: for example the output folder can't be made, the sound
+    /// archives can't be read, or the window holds the voice line search index. The log says why.
+    /// </summary>
+    public const int ExitFailed = 4;
+
     /// <summary>Stopped with Ctrl+C; list.csv still lists what was done.</summary>
     public const int ExitCancelled = 130;
 
@@ -92,7 +98,8 @@ public sealed class ExportOptions
           --log <file>          Write the log to this file instead of the logs folder.
           --help, -h            Show this help.
 
-        Exit codes: 0 all written, 1 some failed, 2 bad options, 3 game Data folder not found, 130 cancelled with Ctrl+C.
+        Exit codes: 0 all written, 1 some failed, 2 bad options, 3 game Data folder not found,
+        4 the export couldn't run (the log says why), 130 cancelled with Ctrl+C.
         """;
 
     public static ExportOptions Parse(IReadOnlyList<string> args)

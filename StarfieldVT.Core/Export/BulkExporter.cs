@@ -35,7 +35,15 @@ public static class BulkExporter
     {
         var clock = Stopwatch.StartNew();
         var root = Path.GetFullPath(outFolder);
-        Directory.CreateDirectory(root);
+        try
+        {
+            Directory.CreateDirectory(root);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException(
+                $"Could not make the export folder {root} ({ex.Message}). Choose a folder you can write to that isn't the name of a file.", ex);
+        }
         Log.Information("Bulk export of {Count} files to {Folder}, layout {Layout}, list.csv {Csv}",
             items.Count, root, options.Layout, options.CsvHeader == null ? "off" : "on");
 
@@ -87,12 +95,20 @@ public static class BulkExporter
         }
 
         string? csvPath = null;
-        if (options.CsvHeader != null)
+        if (options.CsvHeader != null && done == 0)
+        {
+            // nothing was reached (cancelled at once, or no items): leave an earlier list as it is
+            var existing = Path.Combine(root, ExportCsv.FileName);
+            csvPath = File.Exists(existing) ? existing : null;
+            Log.Information("No file was reached, so list.csv was left as it was ({CsvPath})", csvPath ?? "none");
+        }
+        else if (options.CsvHeader != null)
         {
             csvPath = Path.Combine(root, ExportCsv.FileName);
             try
             {
-                ExportCsv.Write(csvPath, options.CsvHeader, present.Select(i => (IReadOnlyList<string>)[i.RelativePath, .. i.CsvRow]));
+                var rows = present.Select(i => (IReadOnlyList<string>)[i.RelativePath, .. i.CsvRow]).ToList();
+                ExportCsv.Write(csvPath, options.CsvHeader, MergeWithEarlierList(csvPath, root, options.CsvHeader, rows));
             }
             catch (Exception ex)
             {
@@ -107,6 +123,76 @@ public static class BulkExporter
         Log.Information("Bulk export finished: {Written} written, {Kept} kept, {Failed} failed, cancelled {Cancelled}, {Seconds:F1} s, list {CsvPath}",
             summary.Written, summary.Kept, summary.Failed, summary.Cancelled, summary.Seconds, csvPath ?? "none");
         return summary;
+    }
+
+    /// <summary>
+    /// The rows of an earlier list.csv in this folder whose files still exist, with this run's rows
+    /// put in place of the same files and the new ones added at the end. So a second export into the
+    /// same folder (another search, or a rerun after a cancel) keeps the earlier files listed.
+    /// </summary>
+    public static List<IReadOnlyList<string>> MergeWithEarlierList(
+        string csvPath, string root, IReadOnlyList<string> header, List<IReadOnlyList<string>> rows)
+    {
+        if (!File.Exists(csvPath)) return rows;
+
+        List<List<string>> earlier;
+        try
+        {
+            earlier = ExportCsv.Parse(File.ReadAllText(csvPath));
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Could not read the earlier {CsvPath}; it is replaced by this run's list", csvPath);
+            return rows;
+        }
+
+        if (earlier.Count == 0 || !earlier[0].SequenceEqual(header))
+        {
+            Log.Warning("The earlier {CsvPath} has other columns ({Columns}), so it is replaced by this run's list. " +
+                        "Export sounds and voice lines to different folders to keep both lists",
+                csvPath, earlier.Count == 0 ? "none" : string.Join(", ", earlier[0]));
+            return rows;
+        }
+
+        var fresh = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows) fresh[row[0]] = row;
+
+        var merged = new List<IReadOnlyList<string>>();
+        var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int carried = 0, dropped = 0;
+        foreach (var old in earlier.Skip(1))
+        {
+            if (old.Count == 0 || old[0].Length == 0 || !used.Add(old[0])) continue;
+            if (fresh.TryGetValue(old[0], out var replacement))
+            {
+                merged.Add(replacement);
+                continue;
+            }
+
+            bool exists;
+            try
+            {
+                exists = File.Exists(ExportLayout.ResolveInside(root, old[0]));
+            }
+            catch (InvalidOperationException)
+            {
+                exists = false;
+            }
+
+            if (exists && old.Count == header.Count)
+            {
+                merged.Add(old);
+                carried++;
+            }
+            else
+            {
+                dropped++;
+            }
+        }
+
+        merged.AddRange(rows.Where(r => used.Add(r[0])));
+        Log.Information("list.csv keeps {Carried} rows from the earlier list (dropped {Dropped} whose files are gone)", carried, dropped);
+        return merged;
     }
 
     private static void TryDelete(string path)

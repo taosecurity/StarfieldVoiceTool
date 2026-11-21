@@ -99,7 +99,7 @@ Inputs (read only):
 - the load order in `%LOCALAPPDATA%\Starfield\Plugins.txt`. Without one, every plugin in `Data` is read, each after its masters. Plugins listed there but not in the chosen `Data` folder are skipped and listed in the log.
 
 Outputs:
-- `.wav` files, only where the user chooses with **Export** or **Export All Shown**, or in the `--out` folder of `starfieldvt-export`. A bulk export writes each file as `<name>.wav.part` and renames it when complete, keeps files that already exist, and (unless turned off) writes `list.csv` in the export folder. Sound columns: File, ID, Name, Group, Folder, Events, Bank, Source, Replaces. Voice columns: File, Plugin, Voice Type, Game File, Dialogue. UTF-8 with a BOM;
+- `.wav` files, only where the user chooses with **Export** or **Export All Shown**, or in the `--out` folder of `starfieldvt-export`. A bulk export writes each file as `<name>.wav.part` and renames it when complete, keeps files that already exist, and (unless turned off) writes `list.csv` in the export folder. An earlier `list.csv` with the same columns is merged: its rows stay while their files exist, and this run's rows replace those for the same files; one with other columns is replaced. A run canceled before its first file leaves `list.csv` as it was. Cells starting with `=`, `+`, `-`, `@`, a tab or a carriage return get a leading `'` (spreadsheet formula guard). When several items want the same path, each gets its archive or plugin name added (`<name>_<source>.wav`), then an 8-digit hash if that still clashes, so a path always means the same item across runs. Sound columns: File, ID, Name, Group, Folder, Events, Bank, Source, Replaces. Voice columns: File, Plugin, Voice Type, Game File, Dialogue. UTF-8 with a BOM;
 - settings, cache and logs in `%LOCALAPPDATA%\StarfieldVT\` (Linux: `~/.local/share/StarfieldVT/`): `settings.json`, `cache.json`, `index\`, `logs\`;
 - temporary conversion files in the system temp folder (`%TEMP%\StarfieldVT\`), deleted after each use and at start-up;
 - on Linux only, if there is none: a `Plugins.txt` listing every plugin in `Data`, in `~/.local/share/Starfield/`.
@@ -113,7 +113,7 @@ Command-line options:
 
 Unknown options are ignored and noted in the log.
 
-`starfieldvt-export` options: the command `sounds` or `voices` first, then `--out <folder>` (not needed with `--list`), `--group <name>` (sounds: a base-game group such as `WPN`, which leaves out DLC, Creation and mod sounds, or an archive name such as `"ShatteredSpace - Main01.ba2"` for those), `--plugin <file>` and `--voice-type <id>` (voices), `--search <text>`, `--flat`, `--no-csv`, `--list`, `--game <Data folder>`, `--verbose`/`-v`, `--log <file>`, `--help`/`-h`. Values may follow as the next argument or after `=`. Unknown options are errors (exit 2). Without `--game`, it uses the game path the window saved, then the Steam or Xbox lookup, and it never saves settings. `voices` uses the window's voice cache when it is current, otherwise it reads the plugins (about 30 seconds) and writes that shared cache; don't run it while the window is loading.
+`starfieldvt-export` options: the command `sounds` or `voices` first, then `--out <folder>` (not needed with `--list`), `--group <name>` (sounds: a base-game group such as `WPN`, which leaves out DLC, Creation and mod sounds, or an archive name such as `"ShatteredSpace - Main01.ba2"` for those), `--plugin <file>` and `--voice-type <id>` (voices), `--search <text>`, `--flat`, `--no-csv`, `--list`, `--game <Data folder>`, `--verbose`/`-v`, `--log <file>`, `--help`/`-h`. Values may follow as the next argument or after `=`. Unknown options are errors (exit 2). Without `--game`, it uses the game path the window saved, then the Steam or Xbox lookup, and it never saves settings. `voices` uses the window's voice cache when it is current, otherwise it reads the plugins (about 30 seconds) and writes that shared cache and search index. When it must read the plugins, or `--search` is given, and the window (`StarfieldVT` process) is running, it stops with exit code 4; close the window first. A cached run without `--search` works with the window open. An empty search index is filled from the cache before searching.
 
 `starfieldvt-export` exit codes:
 
@@ -123,17 +123,19 @@ Unknown options are ignored and noted in the log.
 | 1 | Some files failed (each has a log line); the rest were written |
 | 2 | Bad command line, or an unknown group, plugin or voice type (the message lists the valid names) |
 | 3 | No game `Data` folder found (no `Starfield.esm`); use `--game` |
+| 4 | The export couldn't run (the export folder can't be made, the archives can't be read, or the window holds the search index); the `[ERR]` line says why |
 | 130 | Stopped with Ctrl+C (the current file finishes and `list.csv` is written); a second Ctrl+C ends it at once |
 
 Window exit codes: 0 when the window is closed normally. An unexpected error closes the tool (the exit code is then the .NET runtime's crash code, not a tool-specific one) and is written to the log as `[FTL] Unhandled error`.
 
 Log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<yyyyMMdd>.log` (Linux: `~/.local/share/StarfieldVT/logs/`), one file per day, last 5 kept, or the `--log` file. Useful searches: `[ERR]`, `[WRN]`, `skipped`, `Skipping`, `ww2ogg:`; for sound effects, `Found` (the line `Found N sounds (M from mods, E inside banks, K without a name) in S sources`), `Could not read bank`, `Could not read archive`, `Playing sound`, `Exporting sound`, `couldn't be converted`.
 
-`starfieldvt-export` logs to the same daily file (or `--log`). Bulk exports, from the window or the command, log these lines:
+`starfieldvt-export` logs to its own daily file in the same folder, `starfieldvt-export<yyyyMMdd>.log` (last 5 kept, up to 500 MB each), or to the `--log` file. Bulk exports, from the window or the command, log these lines:
 - Information, once per export: `Bulk export of <N> files to <folder>, layout <game folders|flat>, list.csv <on|off>`, then the summary `Bulk export finished: <W> written, <K> kept, <F> failed, cancelled <True|False>, <S> s, list <path>`;
 - Debug (`--verbose`), one per file: `Wrote <path> (<what>)` or `Kept <path> (already there)`;
 - Error, one per failure: `Failed to export <sound or line> to <path>`, with the reason; `Could not write <list.csv>` when the list can't be written (often open in Excel);
-- Warning (command only): `No <sounds|voice lines> match these options, so nothing was exported`;
+- Information, about `list.csv`: `list.csv keeps <N> rows from the earlier list (dropped <D> whose files are gone)`, or `No file was reached, so list.csv was left as it was`; Warning: `The earlier <list.csv> has other columns ..., so it is replaced`;
+- Warning (command only): `No <sounds|voice lines> match these options, so nothing was exported`; Error (command only, exit 4): `The Starfield Voice Tool window is open, and it holds the voice line search index ...` or `The export stopped: Could not make the export folder <folder> ...`;
 - Information (window only, over 1,000 files): `Asking before a big export`, and `Big export not confirmed` when the user says no.
 The converter's own step-by-step trace is below `--verbose` and isn't written.
 

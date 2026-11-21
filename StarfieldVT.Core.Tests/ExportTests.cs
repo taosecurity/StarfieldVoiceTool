@@ -69,15 +69,75 @@ public class ExportTests : IDisposable
     }
 
     [Fact]
-    public void NameClashesGetNumbers()
+    public void NameClashesGetTheirSource()
     {
-        // same name and ID from two sources, and a case-only difference, as Windows sees it
+        // same name and ID from three sources, one a case-only difference, as Windows sees it
         var items = ExportLayout.ForSounds(
-            [Sound(5, "Boom"), Sound(5, "Boom", source: "Mod.ba2"), Sound(5, "BOOM", source: "Other.ba2")], keepFolders: false);
-        Assert.Equal(["Boom_5.wav", "Boom_5_2.wav", "BOOM_5_3.wav"], items.Select(i => i.RelativePath));
+            [Sound(5, "Boom"), Sound(5, "Boom", source: "Mod.ba2"), Sound(5, "BOOM", source: "Other.ba2"), Sound(6, "Quiet")],
+            keepFolders: false);
+        Assert.Equal(["Boom_5_Starfield - WwiseSounds01.wav", "Boom_5_Mod.wav", "BOOM_5_Other.wav", "Quiet_6.wav"],
+            items.Select(i => i.RelativePath));
 
+        // flat voices from two plugins: each gets its plugin
+        var flat = ExportLayout.ForVoices([Voice("a/x.wem", plugin: "ModA.esm"), Voice("a/x.wem", plugin: "ModB.esm")], keepFolders: false);
+        Assert.Equal(["NPCFAstrid_x_ModA.wav", "NPCFAstrid_x_ModB.wav"], flat.Select(i => i.RelativePath));
+    }
+
+    [Fact]
+    public void ClashesInOnePluginGetAStableHash()
+    {
+        // same plugin, voice type and file name, different game paths: the plugin tag still clashes
         var voices = ExportLayout.ForVoices([Voice("a/x.wem"), Voice("b/x.wem")], keepFolders: true);
-        Assert.Equal(P("Starfield.esm", "NPCFAstrid", "NPCFAstrid_x_2.wav"), voices[1].RelativePath);
+        var names = voices.Select(v => Path.GetFileName(v.RelativePath)).ToList();
+        Assert.Equal(2, names.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(names, n => Assert.Matches("^NPCFAstrid_x_[0-9a-f]{8}\\.wav$", n));
+
+        // the same in another run, in the other order
+        var again = ExportLayout.ForVoices([Voice("b/x.wem"), Voice("a/x.wem")], keepFolders: true);
+        Assert.Equal(voices[0].RelativePath, again[1].RelativePath);
+        Assert.Equal(voices[1].RelativePath, again[0].RelativePath);
+
+        // two items the same in every way still get paths of their own
+        var twins = ExportLayout.ForVoices([Voice("a/x.wem"), Voice("a/x.wem")], keepFolders: false);
+        Assert.NotEqual(twins[0].RelativePath, twins[1].RelativePath, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ClashNamesDoNotDependOnWhatElseIsExported()
+    {
+        // run 1 exports ModA's line alone; run 2 exports every plugin with ModB first
+        var alone = ExportLayout.ForVoices([Voice("a/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        var all = ExportLayout.ForVoices(
+            [Voice("a/0001.wem", plugin: "ModB.esm"), Voice("a/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+
+        Assert.Equal("NPCFAstrid_0001.wav", alone[0].RelativePath);
+        // no item of run 2 claims run 1's file, so nothing "keeps" another plugin's audio
+        Assert.DoesNotContain(all, i => i.RelativePath.Equals(alone[0].RelativePath, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(["NPCFAstrid_0001_ModB.wav", "NPCFAstrid_0001_ModA.wav"], all.Select(i => i.RelativePath));
+    }
+
+    [Fact]
+    public void ClashNamesAvoidOtherItemsPaths()
+    {
+        // an item whose own name is what a clash would be tagged to
+        var items = ExportLayout.ForVoices(
+            [Voice("x/x_ModA.wem", plugin: "Other.esm"), Voice("a/x.wem", plugin: "ModA.esm"), Voice("a/x.wem", plugin: "ModB.esm")],
+            keepFolders: false);
+        Assert.Equal(3, items.Select(i => i.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal("NPCFAstrid_x_ModA.wav", items[0].RelativePath);
+        Assert.Matches("^NPCFAstrid_x_[0-9a-f]{8}\\.wav$", items[1].RelativePath);
+    }
+
+    [Fact]
+    public void StableHashIsFixed() => Assert.Equal("811c9dc5", ExportLayout.StableHash(""));
+
+    [Fact]
+    public void DriveRootIsAValidExportFolder()
+    {
+        var root = Path.GetPathRoot(Path.GetFullPath(_dir))!;
+        Assert.Equal(Path.Combine(root, "WPN", "a.wav"), ExportLayout.ResolveInside(root, P("WPN", "a.wav")));
+        Assert.Equal(Path.Combine(root, "a.wav"), ExportLayout.ResolveInside(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, "a.wav"));
+        Assert.Throws<InvalidOperationException>(() => ExportLayout.ResolveInside(root, Path.Combine("Z:" + Path.DirectorySeparatorChar, "a.wav")));
     }
 
     [Theory]
@@ -154,7 +214,29 @@ public class ExportTests : IDisposable
     [InlineData("line1\nline2", "\"line1\nline2\"")]
     [InlineData("cr\rhere", "\"cr\rhere\"")]
     [InlineData("", "")]
+    [InlineData("=1+2", "'=1+2")]
+    [InlineData("+SUM(A1)", "'+SUM(A1)")]
+    [InlineData("- Wait, don't go!", "\"'- Wait, don't go!\"")]
+    [InlineData("@cmd", "'@cmd")]
+    [InlineData("=HYPERLINK(\"http://x\",\"click\")", "\"'=HYPERLINK(\"\"http://x\"\",\"\"click\"\")\"")]
+    [InlineData("\tTab", "'\tTab")]
+    [InlineData("a=b", "a=b")]
+    [InlineData("'quoted", "'quoted")]
     public void CsvQuoting(string cell, string expected) => Assert.Equal(expected, ExportCsv.Escape(cell));
+
+    [Fact]
+    public void CsvParseReadsWhatWriteWrote()
+    {
+        Directory.CreateDirectory(_dir);
+        var path = Path.Combine(_dir, "list.csv");
+        List<IReadOnlyList<string>> rows = [["a.wav", "Hi, \"you\"\r\nnext"], ["b.wav", "=1+2"], ["c.wav", ""], ["-d.wav", "é"]];
+        ExportCsv.Write(path, ["File", "Dialogue"], rows);
+
+        var parsed = ExportCsv.Parse(File.ReadAllText(path));
+        Assert.Equal(["File", "Dialogue"], parsed[0]);
+        Assert.Equal(rows.Count, parsed.Count - 1);
+        for (var i = 0; i < rows.Count; i++) Assert.Equal(rows[i], parsed[i + 1]);
+    }
 
     [Fact]
     public void CsvHasBomAndCrlf()
@@ -273,13 +355,104 @@ public class ExportTests : IDisposable
     }
 
     [Fact]
-    public void AlreadyCancelledWritesNothingButTheCsv()
+    public void AlreadyCancelledWritesNothing()
     {
         var items = ExportLayout.ForSounds([Sound(1, "A")], keepFolders: false);
         var summary = BulkExporter.Run(items, _dir, WithCsv, FakeConvert, cancel: new CancellationToken(canceled: true));
         Assert.True(summary.Cancelled);
         Assert.Equal(0, summary.Written);
-        Assert.Single(File.ReadAllLines(summary.CsvPath!));
+        Assert.Null(summary.CsvPath);
+        Assert.False(File.Exists(Path.Combine(_dir, ExportCsv.FileName)));
+    }
+
+    [Fact]
+    public void AlreadyCancelledLeavesAnEarlierListAsItIs()
+    {
+        // Ctrl+C while the CLI still reads the archives reaches the exporter already cancelled
+        var items = ExportLayout.ForSounds([Sound(1, "A"), Sound(2, "B")], keepFolders: false);
+        var first = BulkExporter.Run(items, _dir, WithCsv, FakeConvert);
+        var before = File.ReadAllText(first.CsvPath!);
+
+        var summary = BulkExporter.Run(items, _dir, WithCsv, FakeConvert, cancel: new CancellationToken(canceled: true));
+        Assert.Equal(first.CsvPath, summary.CsvPath);
+        Assert.Equal(before, File.ReadAllText(first.CsvPath!));
+    }
+
+    [Fact]
+    public void ASecondExportKeepsTheEarlierRows()
+    {
+        var wpn = ExportLayout.ForSounds([Sound(1, "A"), Sound(2, "B"), Sound(3, "C")], keepFolders: false);
+        BulkExporter.Run(wpn, _dir, WithCsv, FakeConvert);
+
+        // a narrower search into the same folder: one old file, one new
+        var search = ExportLayout.ForSounds([Sound(2, "B", folder: "Changed"), Sound(4, "D")], keepFolders: false);
+        var summary = BulkExporter.Run(search, _dir, WithCsv, FakeConvert);
+
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!));
+        Assert.Equal(["File", .. ExportLayout.SoundColumns.Skip(1)], rows[0]);
+        Assert.Equal(["A_1.wav", "B_2.wav", "C_3.wav", "D_4.wav"], rows.Skip(1).Select(r => r[0]));
+        Assert.Equal("Changed", rows[2][4]); // this run's row replaces the earlier one for the same file
+    }
+
+    [Fact]
+    public void RowsWhoseFilesAreGoneAreDropped()
+    {
+        var items = ExportLayout.ForSounds([Sound(1, "A"), Sound(2, "B")], keepFolders: false);
+        BulkExporter.Run(items, _dir, WithCsv, FakeConvert);
+        File.Delete(Path.Combine(_dir, "A_1.wav"));
+
+        var summary = BulkExporter.Run(ExportLayout.ForSounds([Sound(3, "C")], keepFolders: false), _dir, WithCsv, FakeConvert);
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!));
+        Assert.Equal(["B_2.wav", "C_3.wav"], rows.Skip(1).Select(r => r[0]));
+    }
+
+    [Fact]
+    public void AListWithOtherColumnsIsReplaced()
+    {
+        Directory.CreateDirectory(_dir);
+        BulkExporter.Run(ExportLayout.ForVoices([Voice("a/1.wem")], keepFolders: false), _dir,
+            new BulkExportOptions(ExportLayout.VoiceColumns), (_, path) => File.WriteAllText(path, "RIFF"));
+
+        var summary = BulkExporter.Run(ExportLayout.ForSounds([Sound(3, "C")], keepFolders: false), _dir, WithCsv, FakeConvert);
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!));
+        Assert.Equal(ExportLayout.SoundColumns, rows[0]);
+        Assert.Equal(["C_3.wav"], rows.Skip(1).Select(r => r[0]));
+    }
+
+    [Fact]
+    public void EarlierRowsWithHostilePathsAreDropped()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(Path.Combine(_dir, "evil.wav"), "x");
+        var root = Path.Combine(_dir, "out");
+        Directory.CreateDirectory(root);
+        ExportCsv.Write(Path.Combine(root, ExportCsv.FileName), ExportLayout.SoundColumns,
+            [[P("..", "evil.wav"), "1", "", "", "", "", "", "", ""]]);
+
+        var summary = BulkExporter.Run(ExportLayout.ForSounds([Sound(3, "C")], keepFolders: false), root, WithCsv, FakeConvert);
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!));
+        Assert.Equal(["C_3.wav"], rows.Skip(1).Select(r => r[0]));
+    }
+
+    [Fact]
+    public void AnExportFolderThatIsAFileGivesAClearError()
+    {
+        Directory.CreateDirectory(_dir);
+        var file = Path.Combine(_dir, "afile");
+        File.WriteAllText(file, "x");
+        var ex = Assert.Throws<IOException>(() =>
+            BulkExporter.Run(ExportLayout.ForSounds([Sound(1, "A")], keepFolders: false), file, WithCsv, FakeConvert));
+        Assert.Contains("Could not make the export folder " + file, ex.Message);
+        Assert.Contains("Choose a folder", ex.Message);
+    }
+
+    [Fact]
+    public void SampleCancelledChecksTheTokenToo()
+    {
+        var done = new ExportSummary(50, 50, 0, 0, false, 1, null, []);
+        Assert.False(ExportPlan.SampleCancelled(done, CancellationToken.None));
+        Assert.True(ExportPlan.SampleCancelled(done, new CancellationToken(canceled: true)));
+        Assert.True(ExportPlan.SampleCancelled(done with { Cancelled = true }, CancellationToken.None));
     }
 
     [Fact]

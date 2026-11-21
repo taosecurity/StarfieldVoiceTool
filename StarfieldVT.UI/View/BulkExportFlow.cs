@@ -88,7 +88,7 @@ public static class BulkExportFlow
             {
                 var sampleItems = items.Take(ExportPlan.SampleSize).ToList();
                 var sample = await Task.Run(() => BulkExporter.Run(sampleItems, folder, options, convert, progress, token));
-                if (sample.Cancelled)
+                if (ExportPlan.SampleCancelled(sample, token))
                 {
                     setStatus($"Export cancelled after {sample.Written + sample.Kept:N0} of {items.Count:N0} {what} in {folder}");
                     return;

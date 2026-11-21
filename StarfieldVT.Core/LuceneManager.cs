@@ -51,6 +51,9 @@ public class LuceneManager : IDisposable
         }
     }
 
+    /// <summary>How many voice lines the index holds (0 when it was never built or was deleted).</summary>
+    public int DocumentCount => _writer.NumDocs;
+
     public void DeleteIndex()
     {
         _writer.DeleteAll();

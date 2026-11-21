@@ -58,10 +58,22 @@ public static class Program
             Log.Warning("Cancelled with Ctrl+C before the export started; nothing was written");
             return ExportOptions.ExitCancelled;
         }
+        catch (ExportStoppedException ex)
+        {
+            Log.Error("{Message}", ex.Message);
+            return ExportOptions.ExitFailed;
+        }
+        catch (IOException ex)
+        {
+            // a folder or file problem: the message names it and the fix; the stack only at --verbose
+            Log.Error("The export stopped: {Message}", ex.Message);
+            Log.Debug(ex, "Details");
+            return ExportOptions.ExitFailed;
+        }
         catch (Exception ex)
         {
             Log.Fatal(ex, "The export stopped: {Message}", ex.Message);
-            return ExportOptions.ExitSomeFailed;
+            return ExportOptions.ExitFailed;
         }
         finally
         {
@@ -182,7 +194,7 @@ public static class Program
                         ?? throw new FileNotFoundException(
                             $"Could not find {line.Filename} in the voice archives for {line.ModName}")).GetBytes();
 
-        var tree = LoadVoiceTree(dataPath, includeAllModVoices, cancel);
+        var tree = LoadVoiceTree(dataPath, includeAllModVoices, !string.IsNullOrWhiteSpace(options.Search), cancel);
         var voiceTypes = tree.SelectMany(m => m.VoiceTypes).ToList();
 
         string? plugin = null;
@@ -228,21 +240,61 @@ public static class Program
         return ExportLayout.ForVoices(lines, !options.Flat);
     }
 
-    /// <summary>The voice cache when it matches the game, else the same build the window does (about 30 seconds; it saves the cache too).</summary>
-    private static List<Master> LoadVoiceTree(string dataPath, bool includeAllModVoices, CancellationToken cancel)
+    /// <summary>
+    /// The voice cache when it matches the game, else the same build the window does (about 30 seconds;
+    /// it saves the cache and the search index too). The search index is shared with the window, so a
+    /// run that needs it stops when the window is open, and an empty index is filled from the cache.
+    /// </summary>
+    private static List<Master> LoadVoiceTree(string dataPath, bool includeAllModVoices, bool search, CancellationToken cancel)
     {
         var fingerprint = GameFingerprint.Compute(dataPath, includeAllModVoices);
         var cached = new VoiceLineTreeCacheManager().TryToLoadCache(fingerprint);
-        if (cached != null)
+        var windowRunning = WindowRunning();
+        var action = VoiceIndexPlan.Choose(cached != null, search, windowRunning, () => LuceneManager.Instance().DocumentCount);
+        Log.Debug("Voice cache {Cache}, --search {Search}, window open {Window}: {Action}",
+            cached != null ? "current" : "missing or out of date", search, windowRunning, action);
+
+        switch (action)
         {
-            Log.Information("Voice lines loaded from the cache ({Plugins} plugins)", cached.Count);
-            return cached;
+            case VoiceIndexAction.StopWindowOpen:
+                throw new ExportStoppedException(VoiceIndexPlan.WindowOpenMessage);
+            case VoiceIndexAction.Rebuild:
+                Log.Information("Reading the plugins' voice lines (about 30 seconds; the window does the same on its first start)...");
+                LuceneManager.Instance().DeleteIndex();
+                return new DialogueTreeBuilder().BuildTree(dataPath, fingerprint, includeAllModVoices, new LogProgress(), cancel);
+            case VoiceIndexAction.Refill:
+                Log.Warning("The voice line search index is empty; filling it from the cache before searching");
+                var index = LuceneManager.Instance();
+                foreach (var line in cached!.SelectMany(m => m.VoiceTypes).SelectMany(vt => vt.VoiceLines))
+                {
+                    index.AddDocumentWithoutCommitting(line);
+                }
+
+                index.CommitWrites();
+                break;
         }
 
-        Log.Information("Reading the plugins' voice lines (about 30 seconds; the window does the same on its first start)...");
-        LuceneManager.Instance().DeleteIndex();
-        return new DialogueTreeBuilder().BuildTree(dataPath, fingerprint, includeAllModVoices, new LogProgress(), cancel);
+        Log.Information("Voice lines loaded from the cache ({Plugins} plugins)", cached!.Count);
+        return cached;
     }
+
+    private static bool WindowRunning()
+    {
+        try
+        {
+            var processes = System.Diagnostics.Process.GetProcessesByName(VoiceIndexPlan.WindowProcessName);
+            foreach (var p in processes) p.Dispose();
+            return processes.Length > 0;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Could not list processes; assuming the window is closed");
+            return false;
+        }
+    }
+
+    /// <summary>The export can't run; the message says why and what to do (exit code 4, no stack trace).</summary>
+    private sealed class ExportStoppedException(string message) : Exception(message);
 
     private static int Export<T>(ExportOptions options, List<ExportItem<T>>? items, IReadOnlyList<string> columns,
         Action<T, string> convert, CancellationToken cancel)

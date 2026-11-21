@@ -74,12 +74,16 @@ While an export runs, a progress bar and a **Cancel** button replace the buttons
 
 An export of more than 1,000 files first writes 50 of them, then asks whether to go on. The question gives a size estimate from those 50 files and the drive's free space, and warns when the space may not be enough. If you say no, the 50 files and their `list.csv` stay in the folder.
 
-Files that are already in the export folder are kept, not written again, so running the same export a second time only adds what is missing. A file is written under a temporary `.part` name first and renamed when it is complete, so a stopped export never leaves a broken `.wav` behind. Names from mods that Windows doesn't allow in a file name get `_` in place of the bad characters.
+Files that are already in the export folder are kept, not written again, so running the same export a second time only adds what is missing. A file is written under a temporary `.part` name first and renamed when it is complete, so a stopped export never leaves a broken `.wav` behind. Names from mods that Windows doesn't allow in a file name get `_` in place of the bad characters. When two sounds or lines would get the same file name (for example the same line from two plugins in a flat folder), each one gets its archive or plugin name added, such as `NPCFAstrid_0001a2b3_MyMod.wav`, so a file's name always means the same sound or line, whatever else you export with it.
+
+An export into a folder that already has a `list.csv` from an earlier export of the same kind adds to that list: the earlier rows stay while their files are still there, and this export's rows replace the rows for the same files. So two searches exported into one folder give one list of both.
 
 The columns of `list.csv` (UTF-8, so Excel shows accented names correctly):
 
 * Sounds: **File** (the path below the export folder), **ID**, **Name**, **Group**, **Folder**, **Events**, **Bank**, **Source** and **Replaces**, as on the Sound Effects tab. Several events or replaced archives are joined with `; `.
 * Voice lines: **File**, **Plugin**, **Voice Type**, **Game File** (the voice file's path in the game) and **Dialogue**.
+
+A cell that starts with `=`, `+`, `-` or `@` (for example the dialogue "- Wait, don't go!") gets an apostrophe in front, so that Excel shows it as text instead of running it as a formula.
 
 ### From the command line
 `starfieldvt-export.exe` is in the same folder as `StarfieldVT.exe` (`starfieldvt-export` on Linux). Open a command prompt there: open the folder in File Explorer, click the address bar at the top, type `cmd` and press Enter. Then run one of these:
@@ -122,7 +126,7 @@ List of files: D:\Exports\microgun\list.csv
 
 Run it again and it prints `Exported 0 of 84 files; 84 already there (kept)`.
 
-The `voices` command reads the window's voice line cache when it is up to date; otherwise it reads the plugins first, which takes about 30 seconds (as on the window's first start). Don't run it while the window is loading its lines, because both write the same cache.
+The `voices` command reads the window's voice line cache when it is up to date; otherwise it reads the plugins first, which takes about 30 seconds (as on the window's first start). The window and the command share the voice line search index. So when the command has to read the plugins again, or when you use `--search`, close the window first; otherwise the command stops with exit code 4 and says so. A `voices` export without `--search` works with the window open, once the window has loaded its lines.
 
 Press Ctrl+C once to stop after the current file; `list.csv` is still written. Press it a second time to stop at once.
 
@@ -134,6 +138,7 @@ The exit codes, for scripts:
 | 1 | Some files failed; the rest were written. The log names each failure. |
 | 2 | The command line was wrong, or a group, plugin or voice type doesn't exist. |
 | 3 | The game's `Data` folder wasn't found. Use `--game`. |
+| 4 | The export couldn't run at all, for example because the export folder can't be made or the window is open when the search index is needed. The message says why. |
 | 130 | Stopped with Ctrl+C. |
 
 ## Linux
@@ -151,7 +156,7 @@ sudo apt install libvlc5 vlc-plugin-base libfontconfig1 libice6 libsm6 libx11-6 
 ## Troubleshooting
 **Help** → **Open Log Folder** opens the log folder, and **Help** → **About Starfield Voice Tool** → **Copy details** copies the version, system, Data folder and log location for a bug report.
 
-The tool always writes a log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<date>.log` on Windows, `~/.local/share/StarfieldVT/logs/` on Linux. One file per day; the last 5 are kept. The log records the version, the Data folder and load order it read, which plugins it skipped and why, each archive read, and every playback or export error.
+The tool always writes a log: `%LOCALAPPDATA%\StarfieldVT\logs\starfieldvt<date>.log` on Windows, `~/.local/share/StarfieldVT/logs/` on Linux. One file per day; the last 5 are kept. The log records the version, the Data folder and load order it read, which plugins it skipped and why, each archive read, and every playback or export error. `starfieldvt-export` writes its own log in the same folder, `starfieldvt-export<date>.log`.
 
 For more detail, start the tool from a command prompt (or a shortcut) with these options:
 

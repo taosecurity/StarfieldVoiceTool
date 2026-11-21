@@ -15,8 +15,34 @@ public class ExportOptionsTests
         Assert.Equal(1, ExportOptions.ExitSomeFailed);
         Assert.Equal(2, ExportOptions.ExitBadOptions);
         Assert.Equal(3, ExportOptions.ExitNoGame);
+        Assert.Equal(4, ExportOptions.ExitFailed);
         Assert.Equal(130, ExportOptions.ExitCancelled);
+        Assert.Contains("4 the export couldn't run", ExportOptions.Usage);
     }
+
+    [Theory]
+    [InlineData(true, false, true, VoiceIndexAction.None)]      // cache and no search: window may stay open
+    [InlineData(true, false, false, VoiceIndexAction.None)]
+    [InlineData(true, true, true, VoiceIndexAction.StopWindowOpen)]
+    [InlineData(false, false, true, VoiceIndexAction.StopWindowOpen)] // a rebuild would delete the window's index
+    [InlineData(false, false, false, VoiceIndexAction.Rebuild)]
+    [InlineData(false, true, false, VoiceIndexAction.Rebuild)]
+    [InlineData(true, true, false, VoiceIndexAction.Search)]
+    public void VoiceIndexPlanChooses(bool cacheCurrent, bool search, bool windowRunning, VoiceIndexAction expected)
+    {
+        var asked = false;
+        var action = VoiceIndexPlan.Choose(cacheCurrent, search, windowRunning, () =>
+        {
+            asked = true;
+            return 10;
+        });
+        Assert.Equal(expected, action);
+        Assert.Equal(expected == VoiceIndexAction.Search, asked); // the index is opened only when it will be searched
+    }
+
+    [Fact]
+    public void AnEmptyIndexIsRefilledBeforeSearching() =>
+        Assert.Equal(VoiceIndexAction.Refill, VoiceIndexPlan.Choose(true, true, false, () => 0));
 
     [Fact]
     public void SoundsWithOutHasDefaults()

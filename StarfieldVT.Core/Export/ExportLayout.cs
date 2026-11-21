@@ -72,7 +72,8 @@ public static class ExportLayout
         }
 
         var full = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
-        var prefix = fullRoot + Path.DirectorySeparatorChar;
+        // a drive root such as "D:\" keeps its separator after the trim
+        var prefix = Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
         if (!full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -88,8 +89,8 @@ public static class ExportLayout
     /// </summary>
     public static List<ExportItem<SoundEffect>> ForSounds(IEnumerable<SoundEffect> sounds, bool keepFolders)
     {
-        var names = new UniqueNames();
         var items = new List<ExportItem<SoundEffect>>();
+        var tags = new List<string>();
         foreach (var sound in sounds)
         {
             var parts = new List<string>();
@@ -107,7 +108,8 @@ public static class ExportLayout
             }
 
             parts.Add(SoundCatalog.ExportFileName(sound));
-            var path = names.Claim(Path.Combine([.. parts]));
+            var path = Path.Combine([.. parts]);
+            tags.Add(Path.GetFileNameWithoutExtension(sound.SourceText));
             items.Add(new ExportItem<SoundEffect>(path,
             [
                 sound.Id.ToString(CultureInfo.InvariantCulture),
@@ -121,7 +123,7 @@ public static class ExportLayout
             ], sound, $"sound {sound.Id} from {sound.SourceText}"));
         }
 
-        return items;
+        return SettleClashes(items, tags);
     }
 
     /// <summary>The export file name for a voice line: "&lt;VoiceType&gt;_&lt;file&gt;.wav", as the single-line Save dialog suggests.</summary>
@@ -140,39 +142,87 @@ public static class ExportLayout
     /// </summary>
     public static List<ExportItem<VoiceLine>> ForVoices(IEnumerable<VoiceLine> lines, bool keepFolders)
     {
-        var names = new UniqueNames();
         var items = new List<ExportItem<VoiceLine>>();
+        var tags = new List<string>();
         foreach (var line in lines)
         {
             var file = VoiceFileName(line);
             var path = keepFolders
                 ? Path.Combine(SafePart(line.ModName, "Unknown plugin"), SafePart(line.VoiceType, "Unknown voice type"), file)
                 : file;
-            path = names.Claim(path);
+            tags.Add(Path.GetFileNameWithoutExtension(line.ModName ?? ""));
             items.Add(new ExportItem<VoiceLine>(path,
-                [line.ModName, line.VoiceType, line.Filename, line.Dialogue ?? ""],
+                [line.ModName ?? "", line.VoiceType, line.Filename, line.Dialogue ?? ""],
                 line, $"voice line {line.Filename} from {line.ModName}"));
         }
 
-        return items;
+        return SettleClashes(items, tags);
     }
 
-    /// <summary>Hands out paths, adding "_2", "_3", ... before the extension when one is already taken (case-insensitive, as on Windows).</summary>
-    private sealed class UniqueNames
+    /// <summary>
+    /// Give every item a path of its own, the same in every run whatever else is exported with it, so
+    /// a later run into the same folder never "keeps" a file that holds another item's audio. A path
+    /// that only one item wants stays as it is. When several want the same path (case-insensitive, as
+    /// on Windows), each gets its source added ("Boom_5_Mod.wav", "NPCFAstrid_x_ModB.wav"); if that
+    /// still clashes, a short hash of the item's own game path and source ("_1a2b3c4d"). Only items
+    /// that are the same in every way get "_2", "_3".
+    /// </summary>
+    private static List<ExportItem<T>> SettleClashes<T>(List<ExportItem<T>> items, List<string> tags)
     {
-        private readonly HashSet<string> _taken = new(StringComparer.OrdinalIgnoreCase);
+        var wanted = items.GroupBy(i => i.RelativePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        if (wanted.Values.All(n => n == 1)) return items;
 
-        public string Claim(string path)
+        var paths = new string?[items.Count];
+        var taken = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < items.Count; i++)
         {
-            if (_taken.Add(path)) return path;
-            var dir = Path.GetDirectoryName(path) ?? "";
-            var stem = Path.GetFileNameWithoutExtension(path);
-            var ext = Path.GetExtension(path);
-            for (var n = 2; ; n++)
+            if (wanted[items[i].RelativePath] == 1)
             {
-                var candidate = Path.Combine(dir, $"{stem}_{n}{ext}");
-                if (_taken.Add(candidate)) return candidate;
+                paths[i] = items[i].RelativePath;
+                taken.Add(items[i].RelativePath);
             }
         }
+
+        // the source tag, unless two clashing items share it too
+        var tagged = new string[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (paths[i] == null) tagged[i] = WithSuffix(items[i].RelativePath, SafePart(tags[i], "source"));
+        }
+
+        var taggedCount = Enumerable.Range(0, items.Count).Where(i => paths[i] == null)
+            .GroupBy(i => tagged[i], StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (paths[i] != null) continue;
+            var candidate = taggedCount[tagged[i]] == 1 && !taken.Contains(tagged[i])
+                ? tagged[i]
+                : WithSuffix(items[i].RelativePath, StableHash(items[i].Description));
+            for (var n = 2; !taken.Add(candidate); n++)
+            {
+                candidate = WithSuffix(items[i].RelativePath, StableHash(items[i].Description) + "_" + n);
+            }
+
+            paths[i] = candidate;
+        }
+
+        return items.Select((item, i) => item with { RelativePath = paths[i]! }).ToList();
+    }
+
+    private static string WithSuffix(string path, string suffix) =>
+        Path.Combine(Path.GetDirectoryName(path) ?? "", $"{Path.GetFileNameWithoutExtension(path)}_{suffix}{Path.GetExtension(path)}");
+
+    /// <summary>Eight hex digits of FNV-1a over the lower-case text: the same in every run (string.GetHashCode isn't).</summary>
+    public static string StableHash(string text)
+    {
+        var hash = 2166136261u;
+        foreach (var b in System.Text.Encoding.UTF8.GetBytes(text.ToLowerInvariant()))
+        {
+            hash = (hash ^ b) * 16777619u;
+        }
+
+        return hash.ToString("x8", CultureInfo.InvariantCulture);
     }
 }
