@@ -52,7 +52,11 @@ public static class BulkExporter
         var failures = new List<ExportFailure>();
         var present = new List<ExportItem<T>>();
 
-        foreach (var item in items)
+        // who the earlier list.csv says each existing file belongs to, so a file is kept only for its own item
+        var owners = options.CsvHeader == null ? null : EarlierOwners(Path.Combine(root, ExportCsv.FileName), options.CsvHeader);
+        var identity = options.CsvHeader == null ? [] : ExportLayout.IdentityColumns(options.CsvHeader);
+
+        foreach (var original in items)
         {
             if (cancel.IsCancellationRequested)
             {
@@ -60,10 +64,24 @@ public static class BulkExporter
                 break;
             }
 
+            var item = original;
             string? partial = null;
             try
             {
                 var path = ExportLayout.ResolveInside(root, item.RelativePath);
+                for (var n = 1;
+                     n < 100 && owners != null && File.Exists(path) && owners.TryGetValue(item.RelativePath, out var owner) &&
+                     !SameItem(owner, item, identity);
+                     n++)
+                {
+                    var other = ExportLayout.WithSuffix(original.RelativePath,
+                        ExportLayout.StableHash(original.Description) + (n == 1 ? "" : "_" + n));
+                    Log.Warning("{Path} is another item's file (the earlier list.csv lists {Owner} there), so {Item} goes to {Other}",
+                        item.RelativePath, string.Join(", ", identity.Where(c => c < owner.Count).Select(c => owner[c])), item.Description, other);
+                    item = item with { RelativePath = other };
+                    path = ExportLayout.ResolveInside(root, other);
+                }
+
                 if (File.Exists(path))
                 {
                     kept++;
@@ -133,33 +151,15 @@ public static class BulkExporter
     public static List<IReadOnlyList<string>> MergeWithEarlierList(
         string csvPath, string root, IReadOnlyList<string> header, List<IReadOnlyList<string>> rows)
     {
-        if (!File.Exists(csvPath)) return rows;
-
-        List<List<string>> earlier;
-        try
-        {
-            earlier = ExportCsv.Parse(File.ReadAllText(csvPath));
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Could not read the earlier {CsvPath}; it is replaced by this run's list", csvPath);
-            return rows;
-        }
-
-        if (earlier.Count == 0 || !earlier[0].SequenceEqual(header))
-        {
-            Log.Warning("The earlier {CsvPath} has other columns ({Columns}), so it is replaced by this run's list. " +
-                        "Export sounds and voice lines to different folders to keep both lists",
-                csvPath, earlier.Count == 0 ? "none" : string.Join(", ", earlier[0]));
-            return rows;
-        }
+        var earlier = ReadEarlierList(csvPath, header, warn: true);
+        if (earlier == null) return rows;
 
         var fresh = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in rows) fresh[row[0]] = row;
 
         var merged = new List<IReadOnlyList<string>>();
         var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        int carried = 0, dropped = 0;
+        int carried = 0, gone = 0, badRows = 0;
         foreach (var old in earlier.Skip(1))
         {
             if (old.Count == 0 || old[0].Length == 0 || !used.Add(old[0])) continue;
@@ -169,30 +169,90 @@ public static class BulkExporter
                 continue;
             }
 
+            if (old.Count != header.Count)
+            {
+                badRows++;
+                continue;
+            }
+
             bool exists;
             try
             {
                 exists = File.Exists(ExportLayout.ResolveInside(root, old[0]));
             }
-            catch (InvalidOperationException)
+            catch (Exception)
             {
-                exists = false;
+                // a path outside the folder, or one Windows can't read (a hand-edited list)
+                badRows++;
+                continue;
             }
 
-            if (exists && old.Count == header.Count)
+            if (exists)
             {
                 merged.Add(old);
                 carried++;
             }
             else
             {
-                dropped++;
+                gone++;
             }
         }
 
         merged.AddRange(rows.Where(r => used.Add(r[0])));
-        Log.Information("list.csv keeps {Carried} rows from the earlier list (dropped {Dropped} whose files are gone)", carried, dropped);
+        Log.Information("list.csv keeps {Carried} rows from the earlier list (dropped {Gone} whose files are gone and {Bad} that couldn't be read)",
+            carried, gone, badRows);
         return merged;
+    }
+
+    /// <summary>The earlier list.csv's rows (header first) when it has these columns; otherwise null.</summary>
+    private static List<List<string>>? ReadEarlierList(string csvPath, IReadOnlyList<string> header, bool warn)
+    {
+        if (!File.Exists(csvPath)) return null;
+
+        List<List<string>> earlier;
+        try
+        {
+            earlier = ExportCsv.Parse(File.ReadAllText(csvPath));
+        }
+        catch (Exception ex)
+        {
+            if (warn) Log.Warning(ex, "Could not read the earlier {CsvPath}; it is replaced by this run's list", csvPath);
+            return null;
+        }
+
+        if (earlier.Count == 0 || !earlier[0].SequenceEqual(header))
+        {
+            if (warn)
+            {
+                Log.Warning("The earlier {CsvPath} has other columns ({Columns}), so it is replaced by this run's list. " +
+                            "Export sounds and voice lines to different folders to keep both lists",
+                    csvPath, earlier.Count == 0 ? "none" : string.Join(", ", earlier[0]));
+            }
+
+            return null;
+        }
+
+        return earlier;
+    }
+
+    /// <summary>Each file the earlier list.csv names, with its row (the first row wins); empty when there is no usable list.</summary>
+    private static Dictionary<string, List<string>> EarlierOwners(string csvPath, IReadOnlyList<string> header)
+    {
+        var owners = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in ReadEarlierList(csvPath, header, warn: false)?.Skip(1) ?? [])
+        {
+            if (row.Count == header.Count && row[0].Length > 0) owners.TryAdd(row[0], row);
+        }
+
+        return owners;
+    }
+
+    /// <summary>The earlier row and this item agree on the identity columns (ID and Source, or Plugin and Game File).</summary>
+    private static bool SameItem<T>(List<string> owner, ExportItem<T> item, int[] identity)
+    {
+        IReadOnlyList<string> row = [item.RelativePath, .. item.CsvRow];
+        return identity.All(c => c < 0 || (c < owner.Count && c < row.Count &&
+                                           string.Equals(owner[c], row[c], StringComparison.OrdinalIgnoreCase)));
     }
 
     private static void TryDelete(string path)

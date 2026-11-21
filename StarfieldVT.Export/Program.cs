@@ -63,6 +63,12 @@ public static class Program
             Log.Error("{Message}", ex.Message);
             return ExportOptions.ExitFailed;
         }
+        catch (Exception ex) when (VoiceIndexPlan.IsIndexLocked(ex))
+        {
+            Log.Error("{Message}", VoiceIndexPlan.IndexLockedMessage);
+            Log.Debug(ex, "Details");
+            return ExportOptions.ExitFailed;
+        }
         catch (IOException ex)
         {
             // a folder or file problem: the message names it and the fix; the stack only at --verbose
@@ -282,9 +288,11 @@ public static class Program
     {
         try
         {
+            using var me = System.Diagnostics.Process.GetCurrentProcess();
             var processes = System.Diagnostics.Process.GetProcessesByName(VoiceIndexPlan.WindowProcessName);
+            var sessions = processes.Select(p => p.SessionId).ToList();
             foreach (var p in processes) p.Dispose();
-            return processes.Length > 0;
+            return VoiceIndexPlan.AnyInSession(sessions, me.SessionId);
         }
         catch (Exception ex)
         {

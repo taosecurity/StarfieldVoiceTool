@@ -31,6 +31,30 @@ public static class VoiceIndexPlan
         "(to read the plugins again, or for --search). Close the window and run the command again. " +
         "A voices export without --search works with the window open once the window has loaded its lines.";
 
+    /// <summary>The message when the search index is locked although no window was found (another export, or a window started as "dotnet StarfieldVT.dll").</summary>
+    public const string IndexLockedMessage =
+        "The voice line search index is locked by another program: a Starfield Voice Tool window, or another " +
+        "starfieldvt-export run that reads the plugins or uses --search. Close the window or wait for the other " +
+        "run to finish, then run the command again.";
+
+    /// <summary>
+    /// A window counts only in this Windows session: each account has its own search index under its
+    /// own %LOCALAPPDATA%, so another user's open window locks nothing here.
+    /// </summary>
+    public static bool AnyInSession(IEnumerable<int> windowSessionIds, int mySessionId) =>
+        windowSessionIds.Any(id => id == mySessionId);
+
+    /// <summary>The exception (or one inside it) is Lucene's "the index is locked" error.</summary>
+    public static bool IsIndexLocked(Exception? ex)
+    {
+        for (; ex != null; ex = ex.InnerException)
+        {
+            if (ex is Lucene.Net.Store.LockObtainFailedException) return true;
+        }
+
+        return false;
+    }
+
     /// <param name="cacheCurrent">The voice cache matches the game's files.</param>
     /// <param name="search">--search was given.</param>
     /// <param name="windowRunning">A StarfieldVT window process is running.</param>

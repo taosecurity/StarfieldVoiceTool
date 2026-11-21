@@ -41,6 +41,25 @@ public class ExportOptionsTests
     }
 
     [Fact]
+    public void OnlyWindowsInThisSessionCount()
+    {
+        Assert.False(VoiceIndexPlan.AnyInSession([2, 3], 1)); // another account's window
+        Assert.True(VoiceIndexPlan.AnyInSession([2, 1], 1));
+        Assert.False(VoiceIndexPlan.AnyInSession([], 1));
+    }
+
+    [Fact]
+    public void ALuceneLockIsRecognized()
+    {
+        var locked = new Lucene.Net.Store.LockObtainFailedException("Lock obtain timed out");
+        Assert.True(VoiceIndexPlan.IsIndexLocked(locked));
+        Assert.True(VoiceIndexPlan.IsIndexLocked(new InvalidOperationException("outer", locked)));
+        Assert.False(VoiceIndexPlan.IsIndexLocked(new IOException("disk full")));
+        Assert.False(VoiceIndexPlan.IsIndexLocked(null));
+        Assert.Contains("Close the window", VoiceIndexPlan.IndexLockedMessage);
+    }
+
+    [Fact]
     public void AnEmptyIndexIsRefilledBeforeSearching() =>
         Assert.Equal(VoiceIndexAction.Refill, VoiceIndexPlan.Choose(true, true, false, () => 0));
 

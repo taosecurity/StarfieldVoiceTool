@@ -42,14 +42,29 @@ public static class ExportLayout
 
     /// <summary>
     /// A cleaned folder or file name part that is never empty, ".", ".." or a Windows device name
-    /// (CON, NUL, COM1, ... also with an extension such as "CON.wav").
+    /// (CON, NUL, COM1, ... also with an extension such as "CON.wav"), and never starts with a
+    /// spreadsheet formula character (= + - @), so list.csv's File column needs no formula guard and
+    /// always matches the file on disk.
     /// </summary>
     public static string SafePart(string? name, string fallback = "_")
     {
         var clean = CleanName(name);
         if (clean.Length == 0) return fallback;
         var stem = clean.Split('.')[0].TrimEnd(' ');
-        return Reserved.Contains(stem) ? "_" + clean : clean;
+        return Reserved.Contains(stem) || clean[0] is '=' or '+' or '-' or '@' ? "_" + clean : clean;
+    }
+
+    /// <summary>
+    /// The list.csv columns that say which item a row is (the rest, such as Dialogue or Events, may
+    /// change with a game update): ID and Source for sounds, Plugin and Game File for voices, else
+    /// every column but File.
+    /// </summary>
+    public static int[] IdentityColumns(IReadOnlyList<string> header)
+    {
+        int[] Find(params string[] names) => names.Select(n => header.ToList().IndexOf(n)).ToArray();
+        if (header.SequenceEqual(SoundColumns)) return Find("ID", "Source");
+        if (header.SequenceEqual(VoiceColumns)) return Find("Plugin", "Game File");
+        return Enumerable.Range(1, Math.Max(0, header.Count - 1)).ToArray();
     }
 
     /// <summary>Split a game path such as "Hand\Microgun" into cleaned parts, dropping empty ones.</summary>
@@ -107,7 +122,7 @@ public static class ExportLayout
                 }
             }
 
-            parts.Add(SoundCatalog.ExportFileName(sound));
+            parts.Add(SafePart(SoundCatalog.ExportFileName(sound)));
             var path = Path.Combine([.. parts]);
             tags.Add(Path.GetFileNameWithoutExtension(sound.SourceText));
             items.Add(new ExportItem<SoundEffect>(path,
@@ -160,8 +175,8 @@ public static class ExportLayout
     }
 
     /// <summary>
-    /// Give every item a path of its own, the same in every run whatever else is exported with it, so
-    /// a later run into the same folder never "keeps" a file that holds another item's audio. A path
+    /// Give every item in this run a path of its own, the same whatever else is exported with it. (Across
+    /// runs into one folder, <see cref="BulkExporter"/> checks a kept file against the earlier list.csv.) A path
     /// that only one item wants stays as it is. When several want the same path (case-insensitive, as
     /// on Windows), each gets its source added ("Boom_5_Mod.wav", "NPCFAstrid_x_ModB.wav"); if that
     /// still clashes, a short hash of the item's own game path and source ("_1a2b3c4d"). Only items
@@ -211,7 +226,8 @@ public static class ExportLayout
         return items.Select((item, i) => item with { RelativePath = paths[i]! }).ToList();
     }
 
-    private static string WithSuffix(string path, string suffix) =>
+    /// <summary>"dir\name.wav" with "_suffix" before the extension: "dir\name_suffix.wav".</summary>
+    public static string WithSuffix(string path, string suffix) =>
         Path.Combine(Path.GetDirectoryName(path) ?? "", $"{Path.GetFileNameWithoutExtension(path)}_{suffix}{Path.GetExtension(path)}");
 
     /// <summary>Eight hex digits of FNV-1a over the lower-case text: the same in every run (string.GetHashCode isn't).</summary>

@@ -221,7 +221,7 @@ public class ExportTests : IDisposable
     [InlineData("=HYPERLINK(\"http://x\",\"click\")", "\"'=HYPERLINK(\"\"http://x\"\",\"\"click\"\")\"")]
     [InlineData("\tTab", "'\tTab")]
     [InlineData("a=b", "a=b")]
-    [InlineData("'quoted", "'quoted")]
+    [InlineData("'quoted", "''quoted")]
     public void CsvQuoting(string cell, string expected) => Assert.Equal(expected, ExportCsv.Escape(cell));
 
     [Fact]
@@ -474,6 +474,118 @@ public class ExportTests : IDisposable
         Assert.Equal((1, 1), (summary.Written, summary.Failed));
         Assert.False(File.Exists(Path.Combine(_dir, "evil.wav")));
         Assert.Contains("outside the export folder", summary.Failures[0].Message);
+    }
+
+    // ---------- Code review round 2 ----------
+
+    private static void VoiceConvert(VoiceLine line, string path) => File.WriteAllText(path, "RIFF " + line.ModName);
+
+    private static readonly BulkExportOptions VoiceCsv = new(ExportLayout.VoiceColumns, "flat");
+
+    [Fact]
+    public void AnotherItemsFileIsNotKept()
+    {
+        var a = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModA.esm")], keepFolders: false);
+        BulkExporter.Run(a, _dir, VoiceCsv, VoiceConvert);
+
+        var b = ExportLayout.ForVoices([Voice("sound/voice/x/npcfastrid/0001.wem", plugin: "ModB.esm")], keepFolders: false);
+        Assert.Equal(a[0].RelativePath, b[0].RelativePath); // alone, each wants the bare name
+        var summary = BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
+
+        Assert.Equal((1, 0), (summary.Written, summary.Kept));
+        var moved = ExportLayout.WithSuffix(b[0].RelativePath, ExportLayout.StableHash(b[0].Description));
+        Assert.Equal("RIFF ModA.esm", File.ReadAllText(Path.Combine(_dir, a[0].RelativePath)));
+        Assert.Equal("RIFF ModB.esm", File.ReadAllText(Path.Combine(_dir, moved)));
+
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!)).Skip(1).ToList();
+        Assert.Equal([(a[0].RelativePath, "ModA.esm"), (moved, "ModB.esm")], rows.Select(r => (r[0], r[1])));
+
+        // a third run of ModB keeps its own moved file
+        var again = BulkExporter.Run(b, _dir, VoiceCsv, VoiceConvert);
+        Assert.Equal((0, 1), (again.Written, again.Kept));
+        Assert.Equal(2, ExportCsv.Parse(File.ReadAllText(again.CsvPath!)).Count - 1);
+    }
+
+    [Fact]
+    public void TheSameItemIsKeptWhenOnlyItsDialogueChanged()
+    {
+        BulkExporter.Run(ExportLayout.ForVoices([Voice("a/0001.wem", dialogue: "Hello")], keepFolders: false), _dir, VoiceCsv, VoiceConvert);
+        var summary = BulkExporter.Run(ExportLayout.ForVoices([Voice("a/0001.wem", dialogue: "Hello there")], keepFolders: false),
+            _dir, VoiceCsv, VoiceConvert);
+
+        Assert.Equal((0, 1), (summary.Written, summary.Kept));
+        var rows = ExportCsv.Parse(File.ReadAllText(summary.CsvPath!));
+        Assert.Equal("Hello there", rows[1][4]);
+    }
+
+    [Fact]
+    public void WithoutAListAnExistingFileIsKept()
+    {
+        Directory.CreateDirectory(_dir);
+        var items = ExportLayout.ForSounds([Sound(1, "A")], keepFolders: false);
+        File.WriteAllText(Path.Combine(_dir, items[0].RelativePath), "old");
+        var summary = BulkExporter.Run(items, _dir, WithCsv, FakeConvert);
+        Assert.Equal(1, summary.Kept);
+    }
+
+    [Fact]
+    public void IdentityColumnsNameTheItem()
+    {
+        Assert.Equal([1, 7], ExportLayout.IdentityColumns(ExportLayout.SoundColumns));
+        Assert.Equal([1, 3], ExportLayout.IdentityColumns(ExportLayout.VoiceColumns));
+        Assert.Equal([1, 2], ExportLayout.IdentityColumns(["File", "X", "Y"]));
+    }
+
+    [Theory]
+    [InlineData("-Impact", "_-Impact")]
+    [InlineData("=x", "_=x")]
+    [InlineData("+x", "_+x")]
+    [InlineData("@x", "_@x")]
+    [InlineData("a-b", "a-b")]
+    public void FormulaStartsGetAnUnderscore(string name, string expected) => Assert.Equal(expected, ExportLayout.SafePart(name));
+
+    [Fact]
+    public void FileCellsMatchTheFilesOnDisk()
+    {
+        var items = ExportLayout.ForSounds([Sound(5, "-Impact"), Sound(6, "'=Boom")], keepFolders: false);
+        Assert.Equal(["_-Impact_5.wav", "'=Boom_6.wav"], items.Select(i => i.RelativePath));
+        var summary = BulkExporter.Run(items, _dir, WithCsv, FakeConvert);
+
+        var text = File.ReadAllText(summary.CsvPath!);
+        Assert.Contains("\r\n_-Impact_5.wav,", text);
+        var rows = ExportCsv.Parse(text).Skip(1).ToList();
+        Assert.All(rows, r => Assert.True(File.Exists(Path.Combine(_dir, r[0])), r[0]));
+
+        // the rerun reads both names back and keeps them, with no rows dropped
+        var again = BulkExporter.Run(items, _dir, WithCsv, FakeConvert);
+        Assert.Equal(2, again.Kept);
+        Assert.Equal(["_-Impact_5.wav", "'=Boom_6.wav"], ExportCsv.Parse(File.ReadAllText(again.CsvPath!)).Skip(1).Select(r => r[0]));
+    }
+
+    [Theory]
+    [InlineData("'=x")]
+    [InlineData("''")]
+    [InlineData("'a")]
+    [InlineData("'")]
+    [InlineData("=a")]
+    [InlineData("a")]
+    [InlineData("")]
+    public void GuardAndUnguardAreInverses(string cell) => Assert.Equal(cell, ExportCsv.Unguard(ExportCsv.Guard(cell)));
+
+    [Fact]
+    public void HandEditedRowsDoNotStopTheMerge()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(Path.Combine(_dir, "B_2.wav"), "x");
+        ExportCsv.Write(Path.Combine(_dir, ExportCsv.FileName), ExportLayout.SoundColumns,
+        [
+            ["B_2.wav", "2", "B"], // lost columns in Excel
+            ["bad\0name.wav", "9", "", "", "", "", "", "", ""],
+        ]);
+
+        var summary = BulkExporter.Run(ExportLayout.ForSounds([Sound(3, "C")], keepFolders: false), _dir, WithCsv, FakeConvert);
+        Assert.Equal(0, summary.Failed);
+        Assert.Equal(["C_3.wav"], ExportCsv.Parse(File.ReadAllText(summary.CsvPath!)).Skip(1).Select(r => r[0]));
     }
 
     [Fact]

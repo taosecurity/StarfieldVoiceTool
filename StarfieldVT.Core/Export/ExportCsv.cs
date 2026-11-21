@@ -14,16 +14,20 @@ public static class ExportCsv
     /// </summary>
     private static readonly char[] FormulaStarts = ['=', '+', '-', '@', '\t', '\r'];
 
-    /// <summary>The cell with an apostrophe in front when it would start a formula (= + - @, tab or CR).</summary>
+    /// <summary>
+    /// The cell with an apostrophe in front when it would start a formula (= + - @, tab or CR), or
+    /// when it already starts with an apostrophe (so <see cref="Unguard"/> always removes exactly the
+    /// one that was added).
+    /// </summary>
     public static string Guard(string? cell)
     {
         cell ??= "";
-        return cell.Length > 0 && Array.IndexOf(FormulaStarts, cell[0]) >= 0 ? "'" + cell : cell;
+        return cell.Length > 0 && (cell[0] == '\'' || Array.IndexOf(FormulaStarts, cell[0]) >= 0) ? "'" + cell : cell;
     }
 
-    /// <summary>Undo <see cref="Guard"/>: drop the apostrophe that was put in front of a formula start.</summary>
+    /// <summary>Undo <see cref="Guard"/>: drop the apostrophe that was put in front of a formula start or an apostrophe.</summary>
     public static string Unguard(string cell) =>
-        cell.Length > 1 && cell[0] == '\'' && Array.IndexOf(FormulaStarts, cell[1]) >= 0 ? cell[1..] : cell;
+        cell.Length > 1 && cell[0] == '\'' && (cell[1] == '\'' || Array.IndexOf(FormulaStarts, cell[1]) >= 0) ? cell[1..] : cell;
 
     /// <summary>Guard against formulas, then quote the cell when it holds a comma, a double quote, a carriage return or a line feed.</summary>
     public static string Escape(string? cell)
