@@ -46,19 +46,19 @@ Download the Windows or Linux zip below, extract it, and run `StarfieldVT.exe` (
 * Because the version changed, the voice line cache rebuilds once on first start.
 
 ## 0.9.0
-* New **Sound Effects** tab: browse, search, play and export the game's and your mods' sound effects and music (about 35,000 sounds on a Steam install with Shattered Space and a few Creations). See [Sound effects](#sound-effects). The idea comes from [starfield-wwizard](https://github.com/yak3d/starfield-wwizard) by yak3d, the original author of this tool; this version is written from scratch from the file formats (no code was taken from it) and adds mod sounds, export, events and Linux support.
+* A new **Sound Effects** tab lets you browse, search, play and export the game's and your mods' sound effects and music (about 35,000 sounds on a Steam install with Shattered Space and a few Creations). See [Sound effects](#sound-effects). The idea comes from [starfield-wwizard](https://github.com/yak3d/starfield-wwizard) by yak3d, the original author of this tool; this version is written from scratch from the file formats (no code was taken from it) and adds mod sounds, export, events and Linux support.
 * Sounds stored as Wwise PCM (more than half of the sound effects) are now converted too. Voice lines are unchanged: they all use Wwise Vorbis, which goes through the same converter as before.
 * A sound in a format the tool can't convert now gives a message naming the format, instead of a general conversion error.
-* Fixed in the bundled converter (our BnkExtractor fork): Wwise Vorbis sounds with loop points, such as ambient loops and some music, failed with "Could not read full string!", because the converter wrote one of the loop comments in the Ogg header with the wrong length. Voice lines have no loop points and were never affected.
+* The bundled converter (our BnkExtractor fork) has a fix: Wwise Vorbis sounds with loop points, such as ambient loops and some music, failed with "Could not read full string!", because the converter wrote one of the loop comments in the Ogg header with the wrong length. Voice lines have no loop points and were never affected.
 * Because the version changed, the voice line cache rebuilds once on first start.
 
 ## 0.8.1
 * Fixed: the dialogue filter under the table ignored the voice type filter on the left once a plugin was selected. For example, with `sarahmorgan` on the left, a plugin selected and `weapons` in the dialogue filter, every voice type's "weapons" lines in that plugin were shown. The dialogue filter now searches only the lines the table is showing, so all three narrow together: plugin, voice type filter and dialogue text. The status line says what the table is limited to.
-* New, original program icon: a speech bubble with a sound wave on a starry background. It replaces the face icon inherited from the original tool, whose source was unknown. The icon is drawn from scratch by [`art/make_icon.py`](art/make_icon.py) (no game art) and is covered by this repository's MIT license.
+* The program has a new, original icon: a speech bubble with a sound wave on a starry background. It replaces the face icon inherited from the original tool, whose source was unknown. The icon is drawn from scratch by [`art/make_icon.py`](art/make_icon.py) (no game art) and is covered by this repository's MIT license.
 * The window shows the icon on Linux too (before, only the Windows `.exe` had one).
 * The plugin list on the left can be resized: drag the divider between it and the table. The tool remembers the width.
 * Double-click the divider at the right edge of a column header (Voice Type, Filename, Dialogue) to fit that column to its contents, as in Windows Explorer. A double-click on a header no longer plays the selected line.
-* New **Help** menu: **Open Log Folder**, **Report a Problem…** (opens the GitHub issues page) and **About Starfield Voice Tool**. The About window shows the version, credits and license, links to the project and the third-party notices, the Data folder and settings folder in use, and a **Copy details** button for bug reports. The tool itself still never goes online; links open in your browser.
+* A new **Help** menu has **Open Log Folder**, **Report a Problem…** (opens the GitHub issues page) and **About Starfield Voice Tool**. The About window shows the version, credits and license, links to the project and the third-party notices, the Data folder and settings folder in use, and a **Copy details** button for bug reports. The tool itself still never goes online; links open in your browser.
 * Because the version changed, the voice line cache rebuilds once on first start.
 
 ## 0.8.0
@@ -66,27 +66,27 @@ Download the Windows or Linux zip below, extract it, and run `StarfieldVT.exe` (
 * Fixed: mods built on a Creation (for example Terran Armada patches, which need `SFBGS050.esm`) made loading fail the same way, because the game loads Creations from its own catalog rather than `Plugins.txt`. Such masters are now loaded when they are in the `Data` folder, and the log lists them.
 * **Include voices from all mod archives and loose files** is now on by default, and switched on once for existing settings (you can turn it off again). Without it, mods and Creations that pack voices in a ` - Main` archive, such as Astrid and Kinggath's Watchtower, showed no lines.
 * Fixed: each played or exported line left the temporary `.wem` and the Vorbis codebook file open (a bug in the bundled BnkExtractor's ww2ogg port, now fixed in [taosecurity/BnkExtractor](https://github.com/taosecurity/BnkExtractor)). A failed conversion no longer leaves a half-written `.ogg` behind.
-* New command-line options `--verbose` and `--log <file>` for troubleshooting; see [Troubleshooting](#troubleshooting). Voice file conversion errors, which used to go only to a console window, are now in the log, as are unexpected errors that close the tool.
+* New command-line options `--verbose` and `--log <file>` help with troubleshooting; see [Troubleshooting](#troubleshooting). Voice file conversion errors, which used to go only to a console window, are now in the log, as are unexpected errors that close the tool.
 * The release zips include this README and [AGENTS.md](AGENTS.md).
 
 ## 0.7.0
-* New option **Options** → **Include voices from all mod archives and loose files**: finds mod voices packed in archives without ` - Voices` in the name (for example `MyMod - Main.ba2`) and loose `.wem` files under `Data\Sound\Voice`. Off by default. Turning it on or off rebuilds the cache.
+* A new option, **Options** → **Include voices from all mod archives and loose files**, finds mod voices packed in archives without ` - Voices` in the name (for example `MyMod - Main.ba2`) and loose `.wem` files under `Data\Sound\Voice`. It is off by default. Turning it on or off rebuilds the cache.
 * Without a `Plugins.txt` (mods copied into `Data` by hand, no mod manager), the tool now reads every plugin in the `Data` folder instead of only the game's built-in ones. Plugins are ordered after their masters; a plugin whose master is missing is skipped and noted in the log.
 
 ## 0.6.3
-Linux fixes, found by testing the Linux build for the first time:
+These Linux fixes were found by testing the Linux build for the first time:
 * The Linux build no longer crashes at startup on systems without libicu, such as minimal Debian or WSL installs.
 * Setting the game path no longer depends on a system folder picker. The dialog lets you type or paste the path, and **Browse…** uses the picker where one exists. Without a picker (no xdg-desktop-portal or GTK), the first-run setup used to wait forever.
 * Native Steam and Proton installs of Starfield are detected automatically on Linux.
 * Playback works with the system VLC from the normal runtime package (`libvlc5`). It previously looked for `libvlc.so`, which only the developer package provides. If VLC is missing, the error now says what to install.
 * Every line plays reliably, short ones included. A long-lived VLC instance went silent after the first sound on some audio setups (seen on WSLg), and short lines could be cut off when playback ended. This affected Windows too, with high-latency audio such as Bluetooth.
-* New [Linux](#linux) section listing the packages to install.
+* A new [Linux](#linux) section lists the packages to install.
 
 ## 0.6.2
-* **ffmpeg is no longer needed or downloaded.** Voice files are now decoded inside the app ([NVorbis](https://github.com/NVorbis/NVorbis)), which removes the first-start download of a third-party ffmpeg build. The output was checked against ffmpeg's on 300 voice lines from every plugin: identical. A copy downloaded by an earlier version in `%LOCALAPPDATA%\StarfieldVT\ffmpeg` is no longer used and can be deleted.
+* **ffmpeg is no longer needed or downloaded.** Voice files are now decoded inside the app ([NVorbis](https://github.com/NVorbis/NVorbis)), which removes the first-start download of a third-party ffmpeg build. The output was checked against ffmpeg's on 300 voice lines from every plugin, and it was identical. A copy downloaded by an earlier version in `%LOCALAPPDATA%\StarfieldVT\ffmpeg` is no longer used and can be deleted.
 * Temporary audio files are deleted right after each conversion (a file handle left open by the ww2ogg converter previously kept them until the next start).
 * Release zips include `LICENSE.txt`, `THIRD-PARTY-NOTICES.md` and a `licenses` folder with the license texts of all bundled components, with links to the exact source of the GPL and LGPL ones.
-* Removed an unused icon library (Projektanker.Icons.Avalonia.FontAwesome).
+* An unused icon library (Projektanker.Icons.Avalonia.FontAwesome) is removed.
 
 ## 0.6.1
 * Release zips extract with the app at the top level, instead of inside an `artifacts\<name>` folder.
@@ -97,11 +97,11 @@ Linux fixes, found by testing the Linux build for the first time:
 * **Export** asks where to save the `.wav`. It used to write into the game's `Data\sound\voice` folder without asking, and crashed if that failed.
 * The game path is set up before loading starts. Previously the first run failed if the game wasn't auto-detected, and changing the path didn't reload anything.
 * The progress bar tracks the real quest count per plugin. It used to say "Loaded" after 100 quests, and stayed visible forever when the cache was used.
-* Fixed a race that could cut off a new line when the previous one finished playing.
+* A race that could cut off a new line when the previous one finished playing is fixed.
 * Typing incomplete search syntax (e.g. a lone `"` or `(`) no longer breaks the filter.
 * Voice archives are chosen by name pattern: English (`_en`) or language-neutral archives only. Before, a mod named like another plugin, or containing "en", could pull in the wrong archives or languages. Voice folders for `.esl` plugins no longer abort loading.
 * Loading is much faster: the voice archives are indexed once instead of once per plugin, lines are no longer copied on every insert, and selecting a large plugin no longer rebuilds lists repeatedly.
 * Playback and export run in the background, so the window doesn't freeze. Temporary audio files are cleaned up.
 * The cache is invalidated when the game files or load order change, not only on a tool update. It's also written atomically.
 * Errors (load failures, playback/export problems, ffmpeg download failures) are shown in the window, not just in the log.
-* Removed dead code and added unit tests for the core parsing, cache and search logic.
+* Dead code is removed, and unit tests are added for the core parsing, cache and search logic.
