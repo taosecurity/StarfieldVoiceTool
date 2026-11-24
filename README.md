@@ -183,6 +183,10 @@ If the voice lines look wrong or stale, use **File** → **Delete Cache**, or de
 
 Please report issues at https://github.com/taosecurity/StarfieldVoiceTool/issues
 
+## Privacy
+
+Starfield Voice Tool collects nothing and makes no network calls. See [PRIVACY.md](PRIVACY.md) for what it reads and writes.
+
 ## License
 The source code in this repository is licensed under the [MIT License](LICENSE).
 
