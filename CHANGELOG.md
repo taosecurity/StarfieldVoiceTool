@@ -6,15 +6,24 @@ All versions of Starfield Voice Tool, newest first. Each version's section is al
 
 ### What's new
 
-This is a fix release for four problems found in a review of 0.10.0. On Linux, the temporary folder is now private to your account. A saved game path that ends in a backslash no longer makes bulk exports and playback read the sound archives again for every line. Cancelling a rebuild can no longer leave dialogue search empty after a restart. And if the window starts while a `starfieldvt-export` run is using the search index, it now says so instead of failing.
+This is a fix release for four problems found in a review of 0.10.0. On Linux, the temporary folder is now private to your account. In the window, a saved game path that ends in a backslash no longer makes playback and exports read the voice archives again for every line. Cancelling a rebuild can no longer leave dialogue search empty after a restart. And if the window starts while a `starfieldvt-export` run is using the search index, it now says so instead of failing.
 
 ### Example
 
 ```
-> starfieldvt-export voices --voice-type NPCFAstrid --out "D:\Exports\one-group"
+> starfieldvt-export voices --plugin Starfield.esm --voice-type AnnouncerFVigilanceShip --out "D:\Exports\one-group"
+Loading cache from C:\Users\you\AppData\Local\StarfieldVT\cache.json
+Voice lines loaded from the cache (26 plugins)
+Bulk export of 22 files to D:\Exports\one-group, layout game folders, list.csv on
+Reading voice archive Starfield - Voices01.ba2
+Reading voice archive Starfield - Voices02.ba2
+...
+Bulk export finished: 22 written, 0 kept, 0 failed, cancelled False, 7.8 s, list D:\Exports\one-group\list.csv
+Exported 22 of 22 files in 7.8 s
+List of files: D:\Exports\one-group\list.csv
 ```
 
-If the saved game folder ends in a backslash, 0.10.0 read all the sound archives again for every file; 0.10.1 reads them once. (The bug hunt replaces this command with its real output.)
+The command-line export reads each voice archive once for the whole export. The window now does the same: with a saved game folder that ends in a backslash, 0.10.0 read every voice archive again for each line you played or exported (several seconds a line on a large install), and 0.10.1 reads them once, so later lines take under a millisecond to find.
 
 ### Changes
 
