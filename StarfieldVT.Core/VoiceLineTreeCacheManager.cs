@@ -80,6 +80,16 @@ namespace StarfieldVT.Core
             return null;
         }
 
+        /// <summary>
+        /// Call before reading the plugins again: deletes the cache first, then empties the search index, so a
+        /// cancelled or failed rebuild never leaves a valid cache over an empty index.
+        /// </summary>
+        public void BeginRebuild(Action deleteIndex)
+        {
+            BustCache();
+            deleteIndex();
+        }
+
         public void BustCache()
         {
             Log.Information("Deleting cache file at {CachePath}", _cachePath);

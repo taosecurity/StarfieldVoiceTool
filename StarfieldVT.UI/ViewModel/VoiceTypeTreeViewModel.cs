@@ -65,7 +65,8 @@ public class VoiceTypeTreeViewModel
                     return treeCache;
                 }
 
-                LuceneManager.Instance().DeleteIndex();
+                // the cache goes first: a cancelled build then can't leave a valid cache over an empty index
+                cacheManager.BeginRebuild(() => LuceneManager.Instance().DeleteIndex());
                 return new DialogueTreeBuilder().BuildTree(dataFolderPath, fingerprint, includeAllModVoices, progress,
                     cancellationToken);
             }, cancellationToken);

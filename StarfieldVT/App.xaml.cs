@@ -1,12 +1,16 @@
 using System.IO;
 
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Layout;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
 
 using Serilog;
 
 using StarfieldVT.Core;
+using StarfieldVT.Core.Export;
 using StarfieldVT.Core.Filesystem;
 using StarfieldVT.UI.Audio;
 
@@ -75,10 +79,37 @@ namespace StarfieldVT
 
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                desktop.MainWindow = new MainWindow();
+                try
+                {
+                    desktop.MainWindow = new MainWindow();
+                }
+                catch (Exception e) when (VoiceIndexPlan.IsIndexLocked(e))
+                {
+                    // a starfieldvt-export run holds the search index; the window opens normally once it ends
+                    Log.Error(e, "The voice line search index is locked by another program");
+                    desktop.MainWindow = BuildMessageWindow(VoiceIndexPlan.IndexLockedWindowMessage);
+                }
             }
 
             base.OnFrameworkInitializationCompleted();
+        }
+
+        private static Window BuildMessageWindow(string message)
+        {
+            var close = new Button { Content = "Close", HorizontalAlignment = HorizontalAlignment.Right };
+            var panel = new StackPanel { Margin = new Thickness(16), Spacing = 16 };
+            panel.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+            panel.Children.Add(close);
+            var window = new Window
+            {
+                Title = "Starfield Voice Tool",
+                Width = 460,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Content = panel
+            };
+            close.Click += (_, _) => window.Close();
+            return window;
         }
     }
 }

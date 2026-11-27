@@ -41,6 +41,46 @@ public class GameFingerprintTests
     }
 }
 
+public class CancelledRebuildTests
+{
+    [Fact]
+    public void BeginRebuild_DeletesTheCacheBeforeEmptyingTheIndex()
+    {
+        using var dir = new TempDir();
+        var cache = new VoiceLineTreeCacheManager(Path.Combine(dir.Path, "cache.json"));
+        cache.SaveCurrentTree([new Master("Starfield.esm", [])], "F1");
+        Assert.NotNull(cache.TryToLoadCache("F1"));
+
+        var cacheGoneWhenIndexEmptied = false;
+        cache.BeginRebuild(() => cacheGoneWhenIndexEmptied = cache.TryToLoadCache("F1") == null);
+
+        Assert.True(cacheGoneWhenIndexEmptied);
+        // the rebuild was cancelled before it saved a new cache: the next start must rebuild, not trust F1
+        Assert.Null(cache.TryToLoadCache("F1"));
+    }
+
+    [Fact]
+    public void BeginRebuild_LeavesNoCacheWhenEmptyingTheIndexFails()
+    {
+        using var dir = new TempDir();
+        var cache = new VoiceLineTreeCacheManager(Path.Combine(dir.Path, "cache.json"));
+        cache.SaveCurrentTree([new Master("Starfield.esm", [])], "F1");
+
+        Assert.Throws<IOException>(() => cache.BeginRebuild(() => throw new IOException("locked")));
+
+        Assert.Null(cache.TryToLoadCache("F1"));
+    }
+
+    [Fact]
+    public void IsIndexLocked_FindsTheLuceneLockErrorInsideAnotherException()
+    {
+        var locked = new Lucene.Net.Store.LockObtainFailedException("Lock obtain timed out");
+        Assert.True(StarfieldVT.Core.Export.VoiceIndexPlan.IsIndexLocked(new TypeInitializationException("X", locked)));
+        Assert.False(StarfieldVT.Core.Export.VoiceIndexPlan.IsIndexLocked(new IOException("other")));
+        Assert.False(string.IsNullOrWhiteSpace(StarfieldVT.Core.Export.VoiceIndexPlan.IndexLockedWindowMessage));
+    }
+}
+
 public class LooseVoiceFileTests
 {
     [Fact]
