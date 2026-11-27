@@ -1,6 +1,27 @@
 # Changelog
 
 All versions of Starfield Voice Tool, newest first. Each version's section is also its release notes on GitHub.
+## 0.10.1
+
+### What's new
+
+This is a fix release for four problems found in a review of 0.10.0. On Linux, the temporary folder is now private to your account. A saved game path that ends in a backslash no longer makes bulk exports and playback read the sound archives again for every line. Cancelling a rebuild can no longer leave dialogue search empty after a restart. And if the window starts while a `starfieldvt-export` run is using the search index, it now says so instead of failing.
+
+### Example
+
+```
+> starfieldvt-export voices --voice-type NPCFAstrid --out "D:\Exports\one-group"
+```
+
+If the saved game folder ends in a backslash, 0.10.0 read all the sound archives again for every file; 0.10.1 reads them once. (The bug hunt replaces this command with its real output.)
+
+### Changes
+
+- A game folder saved with a trailing `\` or `/` now matches the shared archive index, so the archives are read once. Finding a file in the index is also faster.
+- A cancelled rebuild of the dialogue tree no longer leaves a saved tree over an empty search index. The saved tree is deleted before the index is emptied.
+- When the window starts while a command-line export holds the search index, it shows a message that says to wait or close the export, instead of failing.
+- Linux: temporary conversion files go in a folder named `temp` inside your own app data folder, created so that only you can use it. They no longer go in the shared `/tmp/StarfieldVT`, where another account on the PC could plant links. Windows is unchanged.
+
 
 ## 0.10.0
 
