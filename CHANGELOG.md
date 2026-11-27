@@ -1,6 +1,7 @@
 # Changelog
 
 All versions of Starfield Voice Tool, newest first. Each version's section is also its release notes on GitHub.
+
 ## 0.10.1
 
 ### What's new
@@ -21,7 +22,6 @@ If the saved game folder ends in a backslash, 0.10.0 read all the sound archives
 - A cancelled rebuild of the dialogue tree no longer leaves a saved tree over an empty search index. The saved tree is deleted before the index is emptied.
 - When the window starts while a command-line export holds the search index, it shows a message that says to wait or close the export, instead of failing.
 - Linux: temporary conversion files go in a folder named `temp` inside your own app data folder, created so that only you can use it. They no longer go in the shared `/tmp/StarfieldVT`, where another account on the PC could plant links. Windows is unchanged.
-
 
 ## 0.10.0
 
