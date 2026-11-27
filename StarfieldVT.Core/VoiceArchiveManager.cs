@@ -26,6 +26,7 @@ public class VoiceArchiveManager
     private readonly bool _includeAllModVoices;
     private readonly object _filesLock = new();
     private List<List<IArchiveFile>>? _wemFilesByArchive;
+    private Dictionary<string, IArchiveFile>? _fileLookup;
 
     /// <param name="includeAllModVoices">
     /// Also read voice files from archives without " - Voices" in their name, and loose files under
@@ -45,7 +46,7 @@ public class VoiceArchiveManager
         lock (SharedLock)
         {
             if (_shared == null || _shared._includeAllModVoices != includeAllModVoices ||
-                !_shared._dataFolder.Path.Equals(dataFolderPath, StringComparison.OrdinalIgnoreCase))
+                !_shared._dataFolder.Path.Equals(new DirectoryPath(dataFolderPath).Path, StringComparison.OrdinalIgnoreCase))
             {
                 _shared = new VoiceArchiveManager(dataFolderPath, includeAllModVoices);
             }
@@ -163,20 +164,29 @@ public class VoiceArchiveManager
     /// <summary>Find a voice file by its full path inside the archive, e.g. a <see cref="Models.VoiceLine.Filename"/>.</summary>
     public IArchiveFile? FindFile(string archivePath)
     {
-        foreach (var files in GetWemFilesByArchive())
+        GetWemFilesByArchive();
+        lock (_filesLock)
         {
-            var match = files.FirstOrDefault(file => VoicePaths.ArchivePathsEqual(file.Path, archivePath));
-            if (match != null) return match;
+            return _fileLookup!.GetValueOrDefault(archivePath.Replace('\\', '/'));
         }
-
-        return null;
     }
 
     private List<List<IArchiveFile>> GetWemFilesByArchive()
     {
         lock (_filesLock)
         {
-            return _wemFilesByArchive ??= ReadVoiceFileSources().ToList();
+            if (_wemFilesByArchive == null)
+            {
+                var sources = ReadVoiceFileSources().ToList();
+                // highest priority source first: the first file with a path wins
+                var lookup = new Dictionary<string, IArchiveFile>(StringComparer.OrdinalIgnoreCase);
+                foreach (var file in sources.SelectMany(files => files))
+                    lookup.TryAdd(file.Path.Replace('\\', '/'), file);
+                _fileLookup = lookup;
+                _wemFilesByArchive = sources;
+            }
+
+            return _wemFilesByArchive;
         }
     }
 }

@@ -62,6 +62,32 @@ public class LooseVoiceFileTests
     }
 
     [Fact]
+    public void Shared_ReusesTheInstanceWhenThePathHasATrailingSeparator()
+    {
+        using var dir = new TempDir();
+        VoiceArchiveManager.ResetShared();
+        var withSeparator = VoiceArchiveManager.Shared(dir.Path + Path.DirectorySeparatorChar);
+        Assert.Same(withSeparator, VoiceArchiveManager.Shared(dir.Path + Path.DirectorySeparatorChar));
+        Assert.Same(withSeparator, VoiceArchiveManager.Shared(dir.Path));
+        VoiceArchiveManager.ResetShared();
+    }
+
+    [Fact]
+    public void FindFile_MatchesLoosePathsWithEitherSlashAndAnyCase()
+    {
+        using var dir = new TempDir();
+        var voiceType = Path.Combine(dir.Path, "Sound", "Voice", "MyMod.esp", "npcfx");
+        Directory.CreateDirectory(voiceType);
+        File.WriteAllBytes(Path.Combine(voiceType, "00000001.wem"), [1]);
+
+        var manager = new VoiceArchiveManager(dir.Path, includeAllModVoices: true);
+
+        Assert.NotNull(manager.FindFile("sound/voice/mymod.esp/npcfx/00000001.wem"));
+        Assert.NotNull(manager.FindFile(@"Sound\Voice\MyMod.esp\npcfx\00000001.wem"));
+        Assert.Null(manager.FindFile("sound/voice/mymod.esp/npcfx/00000002.wem"));
+    }
+
+    [Fact]
     public void GetLooseVoiceFiles_IsEmptyWithoutVoiceFolder()
     {
         using var dir = new TempDir();
