@@ -2,7 +2,7 @@
 
 All versions of Starfield Voice Tool, newest first. Each version's section is also its release notes on GitHub.
 
-## 0.10.1
+## 0.10.1 (2026-11-27)
 
 ### What's new
 
