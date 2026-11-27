@@ -6,7 +6,7 @@ Starfield Voice Tool runs on your own computer. It collects no data and sends no
 
 - It makes no network connections of its own and needs none.
 - It has no telemetry, analytics, crash reporting or update checks.
-- It never changes game files, plugins, archives, `Plugins.txt` or saves.
+- It never changes game files, plugins, archives or saves, and it never changes an existing `Plugins.txt`.
 - It starts no other program, except that the links in **Help** and **About** (such as **Report a Problem**) open
   in your web browser, and **Open Log Folder** and the notices file open in your file manager or text viewer. That
   happens only when you click them.
@@ -15,7 +15,8 @@ Starfield Voice Tool runs on your own computer. It collects no data and sends no
 
 - It reads the game's `Data` folder: the plugins (`.esm`, `.esp`, `.esl`), the `.ba2` archives, and loose files
   under `Data\Sound\Voice` and `Data\Sound\Soundbanks`.
-- It reads the load order in `%LOCALAPPDATA%\Starfield\Plugins.txt`. Without it, every plugin in `Data` is read.
+- It reads the load order in `%LOCALAPPDATA%\Starfield\Plugins.txt` (on Linux `~/.local/share/Starfield/Plugins.txt`).
+  Without it, every plugin in `Data` is read.
 - It reads its own settings, cache and search index (below).
 
 ## What it writes
@@ -35,13 +36,15 @@ Starfield Voice Tool runs on your own computer. It collects no data and sends no
 - Temporary conversion files go in `%TEMP%\StarfieldVT\` on Windows, and on Linux in
   `~/.local/share/StarfieldVT/temp/`, which the tool creates so that only you can use it. They are deleted after
   each use and at start-up.
+- On Linux only, when there is no `Plugins.txt`, it creates `~/.local/share/Starfield/Plugins.txt` listing every
+  plugin in `Data`, so that the load order can be read. It never changes a `Plugins.txt` that already exists.
 
 It plays sound through your computer's audio output, and nothing else leaves the program.
 
 ## Personal data
 
-Starfield Voice Tool handles none. Its logs show file names and folder paths, and its cache holds the game's dialogue
-text.
+Starfield Voice Tool collects no personal data. Its logs show file names and folder paths, which can include your
+user name, and its cache holds the game's dialogue text.
 
 ## Downloading it
 

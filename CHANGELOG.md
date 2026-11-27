@@ -28,7 +28,7 @@ The command-line export reads each voice archive once for the whole export. The 
 ### Changes
 
 - A game folder saved with a trailing `\` or `/` now matches the shared archive index, so the archives are read once. Finding a file in the index is also faster.
-- A cancelled rebuild of the dialogue tree no longer leaves a saved tree over an empty search index. The saved tree is deleted before the index is emptied.
+- A canceled rebuild of the dialogue tree no longer leaves a saved tree over an empty search index. The saved tree is deleted before the index is emptied.
 - When the window starts while another window or a command-line export holds the search index, it shows a message that says so, instead of failing.
 - The command-line export also deletes the saved tree before it empties the search index when it reads the plugins again, so a run stopped with Ctrl+C can't leave the window's dialogue search empty either.
 - Linux: temporary conversion files go in a folder named `temp` inside your own app data folder, created so that only you can use it. They no longer go in the shared `/tmp/StarfieldVT`, where another account on the PC could plant links. Windows is unchanged.
