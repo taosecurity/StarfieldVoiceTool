@@ -252,7 +252,8 @@ public static class Program
     private static List<Master> LoadVoiceTree(string dataPath, bool includeAllModVoices, bool search, CancellationToken cancel)
     {
         var fingerprint = GameFingerprint.Compute(dataPath, includeAllModVoices);
-        var cached = new VoiceLineTreeCacheManager().TryToLoadCache(fingerprint);
+        var cacheManager = new VoiceLineTreeCacheManager();
+        var cached = cacheManager.TryToLoadCache(fingerprint);
         var windowRunning = WindowRunning();
         var action = VoiceIndexPlan.Choose(cached != null, search, windowRunning, () => LuceneManager.Instance().DocumentCount);
         Log.Debug("Voice cache {Cache}, --search {Search}, window open {Window}: {Action}",
@@ -264,7 +265,8 @@ public static class Program
                 throw new ExportStoppedException(VoiceIndexPlan.WindowOpenMessage);
             case VoiceIndexAction.Rebuild:
                 Log.Information("Reading the plugins' voice lines (about 30 seconds; the window does the same on its first start)...");
-                LuceneManager.Instance().DeleteIndex();
+                // the cache goes first: a cancelled build then can't leave a valid cache over an empty index
+                cacheManager.BeginRebuild(() => LuceneManager.Instance().DeleteIndex());
                 return new DialogueTreeBuilder().BuildTree(dataPath, fingerprint, includeAllModVoices, new LogProgress(), cancel);
             case VoiceIndexAction.Refill:
                 Log.Warning("The voice line search index is empty; filling it from the cache before searching");

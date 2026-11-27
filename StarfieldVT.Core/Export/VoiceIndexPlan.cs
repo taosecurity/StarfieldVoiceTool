@@ -37,10 +37,11 @@ public static class VoiceIndexPlan
         "starfieldvt-export run that reads the plugins or uses --search. Close the window or wait for the other " +
         "run to finish, then run the command again.";
 
-    /// <summary>The message the window shows when it can't start because a command-line run holds the search index.</summary>
+    /// <summary>The message the window shows when it can't start because another window or a command-line run holds the search index.</summary>
     public const string IndexLockedWindowMessage =
-        "The voice line search index is in use by a starfieldvt-export run (one that reads the plugins or uses " +
-        "--search). Wait for that run to finish, then start the Starfield Voice Tool window again.";
+        "The voice line search index is in use by another program: another Starfield Voice Tool window, or a " +
+        "starfieldvt-export run that reads the plugins or uses --search. Use the window that is already open, or " +
+        "wait for the export to finish, then start the Starfield Voice Tool window again.";
 
     /// <summary>
     /// What is known about one StarfieldVT process: whether it runs under this account (null when

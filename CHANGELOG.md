@@ -6,7 +6,7 @@ All versions of Starfield Voice Tool, newest first. Each version's section is al
 
 ### What's new
 
-This is a fix release for four problems found in a review of 0.10.0. On Linux, the temporary folder is now private to your account. In the window, a saved game path that ends in a backslash no longer makes playback and exports read the voice archives again for every line. Cancelling a rebuild can no longer leave dialogue search empty after a restart. And if the window starts while a `starfieldvt-export` run is using the search index, it now says so instead of failing.
+This is a fix release for four problems found in a review of 0.10.0. On Linux, the temporary folder is now private to your account. In the window, a saved game path that ends in a backslash no longer makes playback and exports read the voice archives again for every line. Cancelling a rebuild can no longer leave dialogue search empty after a restart. And if the window starts while another window or a `starfieldvt-export` run is using the search index, it now says so instead of failing.
 
 ### Example
 
@@ -29,7 +29,8 @@ The command-line export reads each voice archive once for the whole export. The 
 
 - A game folder saved with a trailing `\` or `/` now matches the shared archive index, so the archives are read once. Finding a file in the index is also faster.
 - A cancelled rebuild of the dialogue tree no longer leaves a saved tree over an empty search index. The saved tree is deleted before the index is emptied.
-- When the window starts while a command-line export holds the search index, it shows a message that says to wait or close the export, instead of failing.
+- When the window starts while another window or a command-line export holds the search index, it shows a message that says so, instead of failing.
+- The command-line export also deletes the saved tree before it empties the search index when it reads the plugins again, so a run stopped with Ctrl+C can't leave the window's dialogue search empty either.
 - Linux: temporary conversion files go in a folder named `temp` inside your own app data folder, created so that only you can use it. They no longer go in the shared `/tmp/StarfieldVT`, where another account on the PC could plant links. Windows is unchanged.
 
 ## 0.10.0

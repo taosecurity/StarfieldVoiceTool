@@ -85,7 +85,7 @@ namespace StarfieldVT
                 }
                 catch (Exception e) when (VoiceIndexPlan.IsIndexLocked(e))
                 {
-                    // a starfieldvt-export run holds the search index; the window opens normally once it ends
+                    // another window or a starfieldvt-export run holds the search index; the window opens normally once it ends
                     Log.Error(e, "The voice line search index is locked by another program");
                     desktop.MainWindow = BuildMessageWindow(VoiceIndexPlan.IndexLockedWindowMessage);
                 }
